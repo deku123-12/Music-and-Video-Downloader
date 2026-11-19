@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lim3rd Downloader</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div id="introSplash" class="intro-splash" aria-hidden="true">
+        <div class="splash-core">
+            <div class="splash-ring"></div>
+            <div class="splash-bolt"><i class="fa-solid fa-bolt"></i></div>
+            <div class="splash-brand">LIM3RD</div>
+            <div class="splash-sub">MEDIA YT DOWNLOADER</div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="top-bar">
+            <div class="telemetry-pill" title="Live Clock & Region Status">
+                <span class="live-dot"></span>
+                <span id="liveClock" class="clock-text">--:--:--</span>
+                <span class="pill-divider">•</span>
+                <span id="regionBadge" class="region-text">REGION: PH</span>
+            </div>
+
+            <div class="lang-selector">
+                <i class="fa-solid fa-globe"></i>
+                <select id="langSelect" onchange="changeLanguage()">
+                    <option value="en">English</option>
+                    <option value="tl">Tagalog</option>
+                    <option value="zh">中文 (Chinese)</option>
+                </select>
+            </div>
+        </div>
+
+        <header>
+            <div class="logo-icon"><i class="fa-solid fa-bolt"></i></div>
+            <h1><span id="uiTitle">Lim3rd Downloader</span></h1>
+            <p id="uiSubtitle">Download videos and music instantly in high quality.</p>
+        </header>
+
+        <div class="input-section">
+            <div class="input-box">
+                <i class="fa-solid fa-link"></i>
+                <input type="text" id="mediaInput" placeholder="Paste YouTube link here..." oninput="toggleClear()">
+                <button id="clearBtn" onclick="clearInput()" style="display:none;"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+
+            <div class="btn-group">
+                <button id="pasteBtn" onclick="pasteText()"><i class="fa-solid fa-paste"></i> <span id="uiPaste">Paste</span></button>
+                <button id="fetchBtn" onclick="fetchMedia()"><i class="fa-solid fa-download"></i> <span id="uiDownload">Fetch Media</span></button>
+            </div>
+        </div>
+
+        <div id="resultBox" class="result-box" style="display:none;">
+            <p id="statusMsg">Processing...</p>
+            
+            <div id="previewCard" class="preview-card" style="display:none;">
+                <img id="thumbImg" src="" alt="Thumbnail">
+                <div class="info">
+                    <h3 id="titleText">Media title</h3>
+                    <p id="authorText">Creator</p>
+                </div>
+            </div>
+
+            <div id="mediaOptionsSection" style="display:none;">
+                <div class="mode-switch" role="tablist" aria-label="Media Format Type">
+                    <button type="button" class="mode-btn active" onclick="switchTab('video')">
+                        <i class="fa-solid fa-film"></i>
+                        <span id="uiVideoTab">Video</span>
+                    </button>
+                    <button type="button" class="mode-btn" onclick="switchTab('audio')">
+                        <i class="fa-solid fa-music"></i>
+                        <span id="uiAudioTab">Audio</span>
+                    </button>
+                </div>
+
+                <div id="videoTabContent" class="tab-content active">
+                    <div id="videoGrid" class="format-grid"></div>
+                </div>
+
+                <div id="audioTabContent" class="tab-content" style="display:none;">
+                    <div id="audioGrid" class="format-grid"></div>
+                </div>
+
+                <div class="action-buttons" style="margin-top: 15px;">
+                    <button id="downloadNowBtn" class="download-link-btn">
+                        <i class="fa-solid fa-download"></i> <span id="uiDownloadNow">Download File</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>Developed by Lim3rd and We are Legions</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
