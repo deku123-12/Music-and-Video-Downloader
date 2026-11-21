@@ -1,1 +1,462 @@
-function _0x10bc(){const _0x4ad369=['display','focus','Paste\x20YouTube\x20link\x20here...','9709785lELXmV','REGION','processing','forEach','获取媒体','querySelectorAll','regionPrefix','Download\x20failed.\x20Please\x20try\x20again.','uiAudioTab','body','includes','titleText','add','padStart','立即以高清格式下载视频和音乐。','591086aoQhGp','trim','timeZone','Seoul','disabled','/region','剪贴板访问被阻止，请手动粘贴。','author','hide','click','150HgFYuq','Lim3rd_Media','Paste','liveClock','</span>\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20<span\x20class=\x22badge\x20','\x0a\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20<span\x20class=\x22q-text\x22>','Download\x20videos\x20and\x20music\x20instantly\x20in\x20high\x20quality.','thumbnail','Hindi\x20ma-access\x20ang\x20clipboard.\x20I-paste\x20nang\x20mano-mano.','createObjectURL','/download?url=','.format-card','Kinukuha\x20ang\x20detalye,\x20mangyaring\x20maghintay...','test','error','url','audioGrid','status','className','format-card\x20','<i\x20class=\x22fa-solid\x20fa-spinner\x20fa-spin\x22></i>\x20Preparing...','Mag-download\x20ng\x20mga\x20video\x20at\x20musika\x20nang\x20mabilis\x20at\x20mataas\x20ang\x20kalidad.','selected','Manila','preventDefault','Singapore','remove','videoGrid','mp4','isArray','DateTimeFormat','在此粘贴\x20YouTube\x20链接...','resolvedOptions','I-paste','Video','setAttribute','110908NTuEqS','parentNode','getElementById','title','style','innerHTML','toLowerCase','block','errorConn','3572384grkfxu','clearBtn','appendChild','replace','success','mediaInput','createElement','REHIYON','revokeObjectURL','errorProcess','getSeconds','downloadNowBtn','matchMedia','Clipboard\x20access\x20blocked.\x20Please\x20paste\x20manually.','value','json','previewCard','countryCode','download','8754396DUaEnY','连接错误，请稍后重试。','resultBox','src','(prefers-reduced-motion:\x20reduce)','getMinutes','Unable\x20to\x20download\x20playable\x20file.','uiDownload','/proxy-download?url=','I-paste\x20ang\x20YouTube\x20link\x20dito...','uiVideoTab','addEventListener','3926545xUmTXP','quality','Connection\x20error.\x20Please\x20try\x20again\x20later.','DOMContentLoaded','.mode-switch\x20.mode-btn','placeholder','signal','flex','Please\x20input\x20a\x20YouTube\x20link','none','2iYZuAG','https://music-and-video-downloader.onrender.com','authorText','ready','videoFormats','video','&ext=','blob','regionBadge','Fetching\x20media\x20details,\x20please\x20wait...','thumbImg','mediaOptionsSection','classList','audioFormats','querySelector','innerText','active','fetchBtn','608094oebLab','下载文件','type','downloadNow','uiPaste','toUpperCase','concat','30wecmOy','mp3','\x20-\x20Lim3rd','.container','<i\x20class=\x22fa-solid\x20fa-spinner\x20fa-spin\x22\x20style=\x22margin-right:\x208px;\x22></i>\x20Waking\x20up\x20server,\x20please\x20wait...','<p\x20style=\x22opacity:0.8;\x20font-size:0.9rem;\x22>No\x20stream\x20returned\x20for\x20this\x20tab\x20yet.</p>','onclick','match','audioTabContent','Fetch\x20Media','videoTabContent','length','audioTab','Audio','paste','getHours','I-download\x20ang\x20File','Los_Angeles','May\x20problema\x20sa\x20koneksyon.\x20Subukan\x20ulit\x20mamaya.'];_0x10bc=function(){return _0x4ad369;};return _0x10bc();}const _0x23cbec=_0x6e69;(function(_0x22e72e,_0x5395b3){const _0x30357f=_0x6e69,_0x164dda=_0x22e72e();while(!![]){try{const _0x751fc9=-parseInt(_0x30357f(0x177))/0x1*(-parseInt(_0x30357f(0x139))/0x2)+parseInt(_0x30357f(0x14b))/0x3+-parseInt(_0x30357f(0x1a5))/0x4*(-parseInt(_0x30357f(0x181))/0x5)+parseInt(_0x30357f(0x1c1))/0x6+parseInt(_0x30357f(0x1cd))/0x7+parseInt(_0x30357f(0x1ae))/0x8+-parseInt(_0x30357f(0x168))/0x9*(parseInt(_0x30357f(0x152))/0xa);if(_0x751fc9===_0x5395b3)break;else _0x164dda['push'](_0x164dda['shift']());}catch(_0x1c687b){_0x164dda['push'](_0x164dda['shift']());}}}(_0x10bc,0xd0dfc));const translations={'en':{'subtitle':_0x23cbec(0x187),'placeholder':_0x23cbec(0x167),'paste':_0x23cbec(0x183),'download':_0x23cbec(0x15b),'downloadNow':'Download\x20File','videoTab':_0x23cbec(0x1a3),'audioTab':'Audio','regionPrefix':_0x23cbec(0x169),'processing':_0x23cbec(0x142),'errorLink':_0x23cbec(0x137),'errorClipboard':_0x23cbec(0x1bb),'errorProcess':_0x23cbec(0x137),'errorConn':_0x23cbec(0x1cf)},'tl':{'subtitle':_0x23cbec(0x196),'placeholder':_0x23cbec(0x1ca),'paste':_0x23cbec(0x1a2),'download':'Kunin\x20ang\x20Media','downloadNow':_0x23cbec(0x162),'videoTab':_0x23cbec(0x1a3),'audioTab':_0x23cbec(0x15f),'regionPrefix':_0x23cbec(0x1b5),'processing':_0x23cbec(0x18d),'errorLink':_0x23cbec(0x137),'errorClipboard':_0x23cbec(0x189),'errorProcess':_0x23cbec(0x137),'errorConn':_0x23cbec(0x164)},'zh':{'subtitle':_0x23cbec(0x176),'placeholder':_0x23cbec(0x1a0),'paste':'粘贴','download':_0x23cbec(0x16c),'downloadNow':_0x23cbec(0x14c),'videoTab':'视频','audioTab':'音频','regionPrefix':'地区','processing':'正在获取媒体详情，请稍候...','errorLink':_0x23cbec(0x137),'errorClipboard':_0x23cbec(0x17d),'errorProcess':_0x23cbec(0x137),'errorConn':_0x23cbec(0x1c2)}},BACKEND_BASE_URL=_0x23cbec(0x13a);let currentLang='en',activeDownloadUrl='',activeDownloadExt='mp4',activeMediaTitle=_0x23cbec(0x182),globalData=null,currentRegionCode='PH';function updateLiveClock(){const _0x28da36=_0x23cbec,_0x116509=document[_0x28da36(0x1a7)](_0x28da36(0x184));if(!_0x116509)return;const _0x2ac047=new Date(),_0x43bafa=String(_0x2ac047[_0x28da36(0x161)]())[_0x28da36(0x175)](0x2,'0'),_0x133de0=String(_0x2ac047[_0x28da36(0x1c6)]())[_0x28da36(0x175)](0x2,'0'),_0x57ce98=String(_0x2ac047[_0x28da36(0x1b8)]())[_0x28da36(0x175)](0x2,'0');_0x116509[_0x28da36(0x148)]=''[_0x28da36(0x151)](_0x43bafa,':')[_0x28da36(0x151)](_0x133de0,':')[_0x28da36(0x151)](_0x57ce98);}function updateRegionBadge(){const _0x31775b=_0x23cbec,_0x2d7250=document[_0x31775b(0x1a7)](_0x31775b(0x141));if(!_0x2d7250)return;const _0xa35e13=translations[currentLang]?.[_0x31775b(0x16e)]||'REGION';_0x2d7250['innerText']=''[_0x31775b(0x151)](_0xa35e13,':\x20')[_0x31775b(0x151)](currentRegionCode);}async function detectUserRegion(){const _0x1ce5a5=_0x23cbec;try{const _0x3fa396=await fetchWithTimeout(''[_0x1ce5a5(0x151)](BACKEND_BASE_URL,_0x1ce5a5(0x17c)),{},0x1f40);if(_0x3fa396['ok']){const _0x28b38f=await _0x3fa396[_0x1ce5a5(0x1bd)]();if(_0x28b38f&&_0x28b38f[_0x1ce5a5(0x1bf)]){currentRegionCode=String(_0x28b38f[_0x1ce5a5(0x1bf)])[_0x1ce5a5(0x150)](),updateRegionBadge();return;}}}catch(_0x2f7eb){}try{const _0x4f47f1=Intl[_0x1ce5a5(0x19f)]()[_0x1ce5a5(0x1a1)]()[_0x1ce5a5(0x179)]||'';if(_0x4f47f1['includes'](_0x1ce5a5(0x198)))currentRegionCode='PH';else{if(_0x4f47f1[_0x1ce5a5(0x172)]('Tokyo'))currentRegionCode='JP';else{if(_0x4f47f1[_0x1ce5a5(0x172)](_0x1ce5a5(0x17a)))currentRegionCode='KR';else{if(_0x4f47f1['includes'](_0x1ce5a5(0x19a)))currentRegionCode='SG';else{if(_0x4f47f1[_0x1ce5a5(0x172)]('Shanghai'))currentRegionCode='CN';else{if(_0x4f47f1['includes'](_0x1ce5a5(0x163))||_0x4f47f1[_0x1ce5a5(0x172)]('New_York'))currentRegionCode='US';}}}}}}catch(_0x100533){currentRegionCode='PH';}updateRegionBadge();}function playIntroAnimation(){const _0x492244=_0x23cbec,_0x3445e1=document[_0x492244(0x1a7)]('introSplash'),_0x419f93=document[_0x492244(0x147)](_0x492244(0x155)),_0x9d4aa8=window[_0x492244(0x1ba)]&&window[_0x492244(0x1ba)](_0x492244(0x1c5))['matches'];if(_0x9d4aa8){if(_0x3445e1)_0x3445e1[_0x492244(0x19b)]();if(_0x419f93)_0x419f93[_0x492244(0x145)]['add'](_0x492244(0x13c));return;}const _0x271f01=()=>{const _0x1380b7=_0x492244;if(_0x3445e1)_0x3445e1['classList'][_0x1380b7(0x174)](_0x1380b7(0x17f));if(_0x419f93)_0x419f93[_0x1380b7(0x145)][_0x1380b7(0x174)]('ready');setTimeout(()=>{const _0x2c23fe=_0x1380b7;if(_0x3445e1&&_0x3445e1[_0x2c23fe(0x1a6)])_0x3445e1[_0x2c23fe(0x19b)]();},0x1f4);};_0x3445e1&&_0x3445e1['addEventListener'](_0x492244(0x180),_0x271f01,{'once':!![]}),setTimeout(_0x271f01,0x47e);}window[_0x23cbec(0x1cc)](_0x23cbec(0x1d0),()=>{playIntroAnimation(),updateLiveClock(),setInterval(updateLiveClock,0x3e8),updateRegionBadge(),detectUserRegion();});function changeLanguage(){const _0x2a36fe=_0x23cbec,_0x1926f5=document[_0x2a36fe(0x1a7)]('langSelect');currentLang=_0x1926f5[_0x2a36fe(0x1bc)];const _0x221269=translations[currentLang];document[_0x2a36fe(0x1a7)]('uiSubtitle')[_0x2a36fe(0x148)]=_0x221269['subtitle'],document[_0x2a36fe(0x1a7)](_0x2a36fe(0x1b3))[_0x2a36fe(0x1d2)]=_0x221269['placeholder'],document['getElementById'](_0x2a36fe(0x14f))['innerText']=_0x221269[_0x2a36fe(0x160)],document[_0x2a36fe(0x1a7)](_0x2a36fe(0x1c8))[_0x2a36fe(0x148)]=_0x221269[_0x2a36fe(0x1c0)],document['getElementById']('uiDownloadNow')[_0x2a36fe(0x148)]=_0x221269[_0x2a36fe(0x14e)];const _0x2c02de=document[_0x2a36fe(0x1a7)](_0x2a36fe(0x1cb)),_0x486d93=document[_0x2a36fe(0x1a7)](_0x2a36fe(0x170));if(_0x2c02de)_0x2c02de[_0x2a36fe(0x148)]=_0x221269['videoTab'];if(_0x486d93)_0x486d93[_0x2a36fe(0x148)]=_0x221269[_0x2a36fe(0x15e)];updateRegionBadge();}function toggleClear(){const _0x2b4aad=_0x23cbec,_0x2e1b14=document[_0x2b4aad(0x1a7)](_0x2b4aad(0x1b3))[_0x2b4aad(0x1bc)],_0x15a39a=document['getElementById'](_0x2b4aad(0x1af));_0x15a39a&&(_0x15a39a[_0x2b4aad(0x1a9)][_0x2b4aad(0x165)]=_0x2e1b14[_0x2b4aad(0x15d)]>0x0?_0x2b4aad(0x1ac):'none');}function clearInput(){const _0x38f31b=_0x23cbec,_0x71a541=document[_0x38f31b(0x1a7)](_0x38f31b(0x1b3));_0x71a541[_0x38f31b(0x1bc)]='',toggleClear(),_0x71a541[_0x38f31b(0x166)]();}async function pasteText(){const _0x5a67c0=_0x23cbec,_0x492bd7=translations[currentLang];try{const _0x1ac9bf=await navigator['clipboard']['readText']();_0x1ac9bf&&(document['getElementById']('mediaInput')['value']=_0x1ac9bf[_0x5a67c0(0x178)](),toggleClear());}catch(_0x374653){alert(_0x492bd7['errorClipboard']);}}function extractUrl(_0x5bb3b9){const _0x3d1b26=_0x23cbec,_0xb7ba6d=/(https?:\/\/[^\s]+)/g,_0x55089c=_0x5bb3b9[_0x3d1b26(0x159)](_0xb7ba6d);return _0x55089c?_0x55089c[0x0]:null;}function isValidYouTubeUrl(_0xf17312){const _0x75e2ba=_0x23cbec;return/^(https?:\/\/)?(www\.)?(m\.)?(youtube\.com\/(watch\?v=|shorts\/|live\/|embed\/)|youtu\.be\/)[\w-]+/i[_0x75e2ba(0x18e)](_0xf17312);}function setActiveFormat(_0x4e5ab4,_0x335340=_0x23cbec(0x19d)){const _0x51c0d5=_0x23cbec;activeDownloadUrl=_0x4e5ab4,activeDownloadExt=(_0x335340||_0x51c0d5(0x19d))[_0x51c0d5(0x1ab)]();}function renderFormatCards(_0x5eaef0,_0x266eed,_0x2b5aa7){const _0x2cdde9=_0x23cbec;if(!_0x5eaef0)return;_0x5eaef0[_0x2cdde9(0x1aa)]='';if(!Array[_0x2cdde9(0x19e)](_0x266eed)||_0x266eed[_0x2cdde9(0x15d)]===0x0){_0x5eaef0[_0x2cdde9(0x1aa)]=_0x2cdde9(0x157),setActiveFormat('',_0x2b5aa7);return;}_0x266eed['forEach']((_0x2c7626,_0x9ce194)=>{const _0xf3919=_0x2cdde9,_0x705a2e=document[_0xf3919(0x1b4)]('div');_0x705a2e[_0xf3919(0x193)]=_0xf3919(0x194)['concat'](_0x9ce194===0x0?_0xf3919(0x197):''),_0x705a2e['innerHTML']=_0xf3919(0x186)['concat'](_0x2c7626[_0xf3919(0x1ce)],_0xf3919(0x185))[_0xf3919(0x151)](_0x2b5aa7,'\x22>')['concat'](_0x2c7626[_0xf3919(0x14d)],'</span>\x0a\x20\x20\x20\x20\x20\x20\x20\x20'),_0x705a2e[_0xf3919(0x158)]=()=>{const _0x41304e=_0xf3919;_0x5eaef0[_0x41304e(0x16d)](_0x41304e(0x18c))[_0x41304e(0x16b)](_0xf0455b=>_0xf0455b[_0x41304e(0x145)][_0x41304e(0x19b)](_0x41304e(0x197))),_0x705a2e[_0x41304e(0x145)]['add'](_0x41304e(0x197)),setActiveFormat(_0x2c7626[_0x41304e(0x190)],_0x2c7626[_0x41304e(0x14d)]);},_0x5eaef0[_0xf3919(0x1b0)](_0x705a2e);});}function switchTab(_0x2fe49c){const _0x89b5a9=_0x23cbec;if(!globalData)return;const _0x40a6d1=document[_0x89b5a9(0x16d)](_0x89b5a9(0x1d1)),_0x4206b8=_0x40a6d1[0x0]||null,_0x4f7c08=_0x40a6d1[0x1]||null,_0x14f26a=document[_0x89b5a9(0x1a7)](_0x89b5a9(0x15c)),_0xda9204=document[_0x89b5a9(0x1a7)](_0x89b5a9(0x15a)),_0x1c4cda=document[_0x89b5a9(0x1a7)](_0x89b5a9(0x19c)),_0x33497e=document[_0x89b5a9(0x1a7)](_0x89b5a9(0x191));if(_0x4206b8)_0x4206b8[_0x89b5a9(0x145)][_0x89b5a9(0x19b)](_0x89b5a9(0x149));if(_0x4f7c08)_0x4f7c08[_0x89b5a9(0x145)][_0x89b5a9(0x19b)](_0x89b5a9(0x149));if(_0x14f26a)_0x14f26a[_0x89b5a9(0x145)][_0x89b5a9(0x19b)](_0x89b5a9(0x149));if(_0xda9204)_0xda9204[_0x89b5a9(0x145)][_0x89b5a9(0x19b)](_0x89b5a9(0x149));if(_0x2fe49c===_0x89b5a9(0x13e)){if(_0x4206b8)_0x4206b8[_0x89b5a9(0x145)]['add'](_0x89b5a9(0x149));_0x14f26a&&(_0x14f26a['style'][_0x89b5a9(0x165)]=_0x89b5a9(0x1ac),_0x14f26a['classList'][_0x89b5a9(0x174)]('active')),_0xda9204&&(_0xda9204[_0x89b5a9(0x1a9)]['display']='none'),renderFormatCards(_0x1c4cda,globalData[_0x89b5a9(0x13d)]||[],_0x89b5a9(0x19d)),globalData[_0x89b5a9(0x13d)]&&globalData[_0x89b5a9(0x13d)][_0x89b5a9(0x15d)]>0x0?setActiveFormat(globalData[_0x89b5a9(0x13d)][0x0]['url'],globalData[_0x89b5a9(0x13d)][0x0][_0x89b5a9(0x14d)]):setActiveFormat('',_0x89b5a9(0x19d));}else{if(_0x4f7c08)_0x4f7c08[_0x89b5a9(0x145)][_0x89b5a9(0x174)](_0x89b5a9(0x149));_0xda9204&&(_0xda9204['style'][_0x89b5a9(0x165)]=_0x89b5a9(0x1ac),_0xda9204[_0x89b5a9(0x145)][_0x89b5a9(0x174)](_0x89b5a9(0x149))),_0x14f26a&&(_0x14f26a[_0x89b5a9(0x1a9)][_0x89b5a9(0x165)]='none'),renderFormatCards(_0x33497e,globalData[_0x89b5a9(0x146)]||[],'mp3'),globalData['audioFormats']&&globalData[_0x89b5a9(0x146)]['length']>0x0?setActiveFormat(globalData[_0x89b5a9(0x146)][0x0][_0x89b5a9(0x190)],globalData[_0x89b5a9(0x146)][0x0][_0x89b5a9(0x14d)]):setActiveFormat('',_0x89b5a9(0x153));}}function _0x6e69(_0x5027cf,_0x22c8f8){_0x5027cf=_0x5027cf-0x136;const _0x10bc57=_0x10bc();let _0x6e694f=_0x10bc57[_0x5027cf];return _0x6e694f;}async function fetchWithTimeout(_0x303c61,_0x35e1e9={},_0x3fa360=0x61a8){const _0x1c116e=_0x23cbec,_0x489c96=new AbortController(),_0x5392bb=setTimeout(()=>_0x489c96['abort'](),_0x3fa360);try{return await fetch(_0x303c61,{..._0x35e1e9,'signal':_0x489c96[_0x1c116e(0x1d3)]});}finally{clearTimeout(_0x5392bb);}}async function fetchMedia(){const _0x225e1f=_0x23cbec,_0x365a12=translations[currentLang],_0x4ccda8=document[_0x225e1f(0x1a7)](_0x225e1f(0x1b3))[_0x225e1f(0x1bc)][_0x225e1f(0x178)](),_0x51893e=extractUrl(_0x4ccda8)||_0x4ccda8,_0x23feb5=document[_0x225e1f(0x1a7)](_0x225e1f(0x1c3)),_0x1f7428=document[_0x225e1f(0x1a7)]('statusMsg'),_0x56b889=document[_0x225e1f(0x1a7)](_0x225e1f(0x1be)),_0x1a8b1b=document[_0x225e1f(0x1a7)](_0x225e1f(0x144)),_0x3e8096=document[_0x225e1f(0x1a7)](_0x225e1f(0x19c)),_0x525b91=document['getElementById'](_0x225e1f(0x191)),_0x4b076a=document[_0x225e1f(0x1a7)](_0x225e1f(0x14a));if(!_0x51893e||!isValidYouTubeUrl(_0x51893e)){alert(_0x365a12['errorLink']);return;}_0x4b076a[_0x225e1f(0x17b)]=!![],_0x23feb5[_0x225e1f(0x1a9)][_0x225e1f(0x165)]=_0x225e1f(0x1ac),_0x1f7428[_0x225e1f(0x1aa)]='<i\x20class=\x22fa-solid\x20fa-spinner\x20fa-spin\x22\x20style=\x22margin-right:\x208px;\x22></i>\x20'['concat'](_0x365a12[_0x225e1f(0x16a)]),_0x56b889['style']['display']=_0x225e1f(0x138),_0x1a8b1b[_0x225e1f(0x1a9)]['display']=_0x225e1f(0x138);if(_0x3e8096)_0x3e8096['innerHTML']='';if(_0x525b91)_0x525b91[_0x225e1f(0x1aa)]='';try{const _0x36a969=''['concat'](BACKEND_BASE_URL,_0x225e1f(0x18b))['concat'](encodeURIComponent(_0x51893e));let _0x6f6bc1;try{_0x6f6bc1=await fetchWithTimeout(_0x36a969,{},0x61a8);}catch(_0xf9ef6d){_0x1f7428[_0x225e1f(0x1aa)]=_0x225e1f(0x156),_0x6f6bc1=await fetchWithTimeout(_0x36a969,{},0x7530);}const _0x44aa64=await _0x6f6bc1[_0x225e1f(0x1bd)]();if(_0x6f6bc1['ok']&&_0x44aa64[_0x225e1f(0x192)]===_0x225e1f(0x1b2)){const _0x350e8f=Array[_0x225e1f(0x19e)](_0x44aa64['videoFormats'])&&_0x44aa64[_0x225e1f(0x13d)][_0x225e1f(0x15d)]>0x0,_0x2dcec3=Array[_0x225e1f(0x19e)](_0x44aa64[_0x225e1f(0x146)])&&_0x44aa64[_0x225e1f(0x146)][_0x225e1f(0x15d)]>0x0;if(!_0x350e8f&&!_0x2dcec3){alert(_0x365a12[_0x225e1f(0x1b7)]),_0x23feb5[_0x225e1f(0x1a9)][_0x225e1f(0x165)]=_0x225e1f(0x138);return;}globalData=_0x44aa64,activeMediaTitle=_0x44aa64['title']||_0x225e1f(0x182),_0x1f7428[_0x225e1f(0x148)]='',document['getElementById'](_0x225e1f(0x173))[_0x225e1f(0x148)]=_0x44aa64[_0x225e1f(0x1a8)],document['getElementById'](_0x225e1f(0x13b))[_0x225e1f(0x148)]=_0x44aa64[_0x225e1f(0x17e)];const _0x1d83e7=document[_0x225e1f(0x1a7)](_0x225e1f(0x143));_0x44aa64['thumbnail']?(_0x1d83e7[_0x225e1f(0x1c4)]=_0x44aa64[_0x225e1f(0x188)],_0x1d83e7[_0x225e1f(0x1a9)][_0x225e1f(0x165)]=_0x225e1f(0x1ac)):_0x1d83e7[_0x225e1f(0x1a9)][_0x225e1f(0x165)]='none';_0x56b889[_0x225e1f(0x1a9)][_0x225e1f(0x165)]=_0x225e1f(0x136),_0x1a8b1b[_0x225e1f(0x1a9)][_0x225e1f(0x165)]=_0x225e1f(0x1ac);const _0x59ed88=document[_0x225e1f(0x16d)](_0x225e1f(0x1d1)),_0x41f144=_0x59ed88[0x0]||null,_0x3e1c97=_0x59ed88[0x1]||null;_0x41f144&&(_0x41f144[_0x225e1f(0x17b)]=![],_0x41f144[_0x225e1f(0x1a9)][_0x225e1f(0x165)]=_0x225e1f(0x136));_0x3e1c97&&(_0x3e1c97[_0x225e1f(0x17b)]=![],_0x3e1c97[_0x225e1f(0x1a9)]['display']=_0x225e1f(0x136));if(_0x350e8f)switchTab(_0x225e1f(0x13e));else _0x2dcec3&&switchTab('audio');}else alert(_0x44aa64[_0x225e1f(0x18f)]||_0x365a12[_0x225e1f(0x1b7)]),_0x23feb5[_0x225e1f(0x1a9)][_0x225e1f(0x165)]='none';}catch(_0x3ae61d){alert(_0x365a12[_0x225e1f(0x1ad)]),_0x23feb5[_0x225e1f(0x1a9)][_0x225e1f(0x165)]=_0x225e1f(0x138);}finally{_0x4b076a['disabled']=![];}}document['getElementById'](_0x23cbec(0x1b9))[_0x23cbec(0x158)]=async _0x56d1c3=>{const _0x366489=_0x23cbec;_0x56d1c3[_0x366489(0x199)]();if(!activeDownloadUrl)return;const _0x3bc4b0=document[_0x366489(0x1a7)](_0x366489(0x1b9)),_0x88fb96=_0x3bc4b0[_0x366489(0x1aa)];_0x3bc4b0[_0x366489(0x17b)]=!![],_0x3bc4b0[_0x366489(0x1aa)]=_0x366489(0x195);const _0x49a159=(activeMediaTitle||_0x366489(0x182))[_0x366489(0x1b1)](/\s*-\s*Lim3rd$/i,'')[_0x366489(0x178)](),_0x585fe9=''[_0x366489(0x151)](_0x49a159,_0x366489(0x154)),_0x3f2afe=''[_0x366489(0x151)](_0x585fe9,'.')[_0x366489(0x151)](activeDownloadExt),_0x4949cd=''[_0x366489(0x151)](BACKEND_BASE_URL,_0x366489(0x1c9))[_0x366489(0x151)](encodeURIComponent(activeDownloadUrl),'&title=')['concat'](encodeURIComponent(_0x585fe9),_0x366489(0x13f))[_0x366489(0x151)](encodeURIComponent(activeDownloadExt));try{const _0x308d8f=await fetch(_0x4949cd);if(!_0x308d8f['ok']){let _0x554b8c=_0x366489(0x1c7);try{const _0x57378a=await _0x308d8f[_0x366489(0x1bd)]();if(_0x57378a?.['error'])_0x554b8c=_0x57378a[_0x366489(0x18f)];}catch(_0x3493ad){}alert(_0x554b8c);return;}const _0x303d8e=await _0x308d8f[_0x366489(0x140)]();if(!_0x303d8e||_0x303d8e['size']<0x400){alert('Downloaded\x20file\x20is\x20empty\x20or\x20incomplete.');return;}const _0x2a4db5=URL[_0x366489(0x18a)](_0x303d8e),_0x3e30c0=document[_0x366489(0x1b4)]('a');_0x3e30c0['href']=_0x2a4db5,_0x3e30c0[_0x366489(0x1a4)]('download',_0x3f2afe),document[_0x366489(0x171)][_0x366489(0x1b0)](_0x3e30c0),_0x3e30c0[_0x366489(0x180)](),_0x3e30c0[_0x366489(0x19b)](),setTimeout(()=>URL[_0x366489(0x1b6)](_0x2a4db5),0x7d0);}catch(_0x4800a9){alert(_0x366489(0x16f));}finally{_0x3bc4b0[_0x366489(0x17b)]=![],_0x3bc4b0['innerHTML']=_0x88fb96;}};
+const translations = {
+    en: {
+        subtitle: "Download videos and music instantly in high quality.",
+        placeholder: "Paste YouTube link here...",
+        paste: "Paste",
+        download: "Fetch Media",
+        downloadNow: "Download File",
+        videoTab: "Video",
+        audioTab: "Audio",
+        regionPrefix: "REGION",
+        processing: "Fetching media details, please wait...",
+        errorLink: "Please input a YouTube link",
+        errorClipboard: "Clipboard access blocked. Please paste manually.",
+        errorProcess: "Please input a YouTube link",
+        errorConn: "Connection error. Please try again later."
+    },
+    tl: {
+        subtitle: "Mag-download ng mga video at musika nang mabilis at mataas ang kalidad.",
+        placeholder: "I-paste ang YouTube link dito...",
+        paste: "I-paste",
+        download: "Kunin ang Media",
+        downloadNow: "I-download ang File",
+        videoTab: "Video",
+        audioTab: "Audio",
+        regionPrefix: "REHIYON",
+        processing: "Kinukuha ang detalye, mangyaring maghintay...",
+        errorLink: "Please input a YouTube link",
+        errorClipboard: "Hindi ma-access ang clipboard. I-paste nang mano-mano.",
+        errorProcess: "Please input a YouTube link",
+        errorConn: "May problema sa koneksyon. Subukan ulit mamaya."
+    },
+    zh: {
+        subtitle: "立即以高清格式下载视频和音乐。",
+        placeholder: "在此粘贴 YouTube 链接...",
+        paste: "粘贴",
+        download: "获取媒体",
+        downloadNow: "下载文件",
+        videoTab: "视频",
+        audioTab: "音频",
+        regionPrefix: "地区",
+        processing: "正在获取媒体详情，请稍候...",
+        errorLink: "Please input a YouTube link",
+        errorClipboard: "剪贴板访问被阻止，请手动粘贴。",
+        errorProcess: "Please input a YouTube link",
+        errorConn: "连接错误，请稍后重试。"
+    }
+};
+
+const BACKEND_BASE_URL = 'https://music-and-video-downloader.onrender.com';
+
+let currentLang = 'en';
+let activeDownloadUrl = '';
+let activeDownloadExt = 'mp4';
+let activeMediaTitle = 'Lim3rd_Media';
+let globalData = null;
+let currentRegionCode = 'PH';
+
+function updateLiveClock() {
+    const clockEl = document.getElementById('liveClock');
+    if (!clockEl) return;
+
+    const now = new Date();
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    const seconds = String(now.getSeconds()).padStart(2, '0');
+    clockEl.innerText = `${hours}:${minutes}:${seconds}`;
+}
+
+function updateRegionBadge() {
+    const regionEl = document.getElementById('regionBadge');
+    if (!regionEl) return;
+    const prefix = translations[currentLang]?.regionPrefix || 'REGION';
+    regionEl.innerText = `${prefix}: ${currentRegionCode}`;
+}
+
+async function detectUserRegion() {
+    try {
+        const res = await fetchWithTimeout(`${BACKEND_BASE_URL}/region`, {}, 8000);
+        if (res.ok) {
+            const info = await res.json();
+            if (info && info.countryCode) {
+                currentRegionCode = String(info.countryCode).toUpperCase();
+                updateRegionBadge();
+                return;
+            }
+        }
+    } catch (e) {
+        // Fallback to timezone region detection
+    }
+
+    try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        if (tz.includes('Manila')) currentRegionCode = 'PH';
+        else if (tz.includes('Tokyo')) currentRegionCode = 'JP';
+        else if (tz.includes('Seoul')) currentRegionCode = 'KR';
+        else if (tz.includes('Singapore')) currentRegionCode = 'SG';
+        else if (tz.includes('Shanghai')) currentRegionCode = 'CN';
+        else if (tz.includes('Los_Angeles') || tz.includes('New_York')) currentRegionCode = 'US';
+    } catch (e) {
+        currentRegionCode = 'PH';
+    }
+    updateRegionBadge();
+}
+
+function playIntroAnimation() {
+    const splash = document.getElementById('introSplash');
+    const container = document.querySelector('.container');
+    const reducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    if (reducedMotion) {
+        if (splash) splash.remove();
+        if (container) container.classList.add('ready');
+        return;
+    }
+
+    const revealApp = () => {
+        if (splash) splash.classList.add('hide');
+        if (container) container.classList.add('ready');
+        setTimeout(() => {
+            if (splash && splash.parentNode) splash.remove();
+        }, 500);
+    };
+
+    if (splash) {
+        splash.addEventListener('click', revealApp, { once: true });
+    }
+
+    setTimeout(revealApp, 1150);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+    playIntroAnimation();
+    updateLiveClock();
+    setInterval(updateLiveClock, 1000);
+    updateRegionBadge();
+    detectUserRegion();
+
+    const langSelect = document.getElementById('langSelect');
+    if (langSelect) langSelect.addEventListener('change', changeLanguage);
+
+    const mediaInput = document.getElementById('mediaInput');
+    if (mediaInput) mediaInput.addEventListener('input', toggleClear);
+
+    const clearBtn = document.getElementById('clearBtn');
+    if (clearBtn) clearBtn.addEventListener('click', clearInput);
+
+    const pasteBtn = document.getElementById('pasteBtn');
+    if (pasteBtn) pasteBtn.addEventListener('click', pasteText);
+
+    const fetchBtn = document.getElementById('fetchBtn');
+    if (fetchBtn) fetchBtn.addEventListener('click', fetchMedia);
+
+    const modeButtons = document.querySelectorAll('.mode-switch .mode-btn');
+    if (modeButtons[0]) modeButtons[0].addEventListener('click', () => switchTab('video'));
+    if (modeButtons[1]) modeButtons[1].addEventListener('click', () => switchTab('audio'));
+});
+
+function changeLanguage() {
+    const select = document.getElementById('langSelect');
+    if (!select) return;
+    currentLang = select.value;
+    const t = translations[currentLang];
+
+    if (document.getElementById('uiSubtitle')) document.getElementById('uiSubtitle').innerText = t.subtitle;
+    if (document.getElementById('mediaInput')) document.getElementById('mediaInput').placeholder = t.placeholder;
+    if (document.getElementById('uiPaste')) document.getElementById('uiPaste').innerText = t.paste;
+    if (document.getElementById('uiDownload')) document.getElementById('uiDownload').innerText = t.download;
+    if (document.getElementById('uiDownloadNow')) document.getElementById('uiDownloadNow').innerText = t.downloadNow;
+
+    const videoTabText = document.getElementById('uiVideoTab');
+    const audioTabText = document.getElementById('uiAudioTab');
+    if (videoTabText) videoTabText.innerText = t.videoTab;
+    if (audioTabText) audioTabText.innerText = t.audioTab;
+
+    updateRegionBadge();
+}
+
+function toggleClear() {
+    const input = document.getElementById('mediaInput');
+    const clearBtn = document.getElementById('clearBtn');
+    if (input && clearBtn) {
+        clearBtn.style.display = input.value.length > 0 ? 'block' : 'none';
+    }
+}
+
+function clearInput() {
+    const input = document.getElementById('mediaInput');
+    if (!input) return;
+    input.value = '';
+    toggleClear();
+    input.focus();
+}
+
+async function pasteText() {
+    const t = translations[currentLang];
+    try {
+        const text = await navigator.clipboard.readText();
+        if (text && document.getElementById('mediaInput')) {
+            document.getElementById('mediaInput').value = text.trim();
+            toggleClear();
+        }
+    } catch (err) {
+        alert(t.errorClipboard);
+    }
+}
+
+function extractUrl(rawText) {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const matches = rawText.match(urlRegex);
+    return matches ? matches[0] : null;
+}
+
+function isValidYouTubeUrl(url) {
+    return /^(https?:\/\/)?(www\.)?(m\.)?(youtube\.com\/(watch\?v=|shorts\/|live\/|embed\/)|youtu\.be\/)[\w-]+/i.test(url);
+}
+
+function setActiveFormat(url, type = 'mp4') {
+    activeDownloadUrl = url;
+    activeDownloadExt = (type || 'mp4').toLowerCase();
+}
+
+function renderFormatCards(gridElement, formats, badgeClass) {
+    if (!gridElement) return;
+    gridElement.innerHTML = '';
+
+    if (!Array.isArray(formats) || formats.length === 0) {
+        gridElement.innerHTML = `<p style="opacity:0.8; font-size:0.9rem;">No stream returned for this tab yet.</p>`;
+        setActiveFormat('', badgeClass);
+        return;
+    }
+
+    formats.forEach((fmt, index) => {
+        const card = document.createElement('div');
+        card.className = `format-card ${index === 0 ? 'selected' : ''}`;
+        card.innerHTML = `
+            <span class="q-text">${fmt.quality}</span>
+            <span class="badge ${badgeClass}">${fmt.type}</span>
+        `;
+        card.onclick = () => {
+            gridElement.querySelectorAll('.format-card').forEach((c) => c.classList.remove('selected'));
+            card.classList.add('selected');
+            setActiveFormat(fmt.url, fmt.type);
+        };
+        gridElement.appendChild(card);
+    });
+}
+
+function switchTab(type) {
+    if (!globalData) return;
+
+    const modeButtons = document.querySelectorAll('.mode-switch .mode-btn');
+    const videoTabBtn = modeButtons[0] || null;
+    const audioTabBtn = modeButtons[1] || null;
+    const videoTabContent = document.getElementById('videoTabContent');
+    const audioTabContent = document.getElementById('audioTabContent');
+    const videoGrid = document.getElementById('videoGrid');
+    const audioGrid = document.getElementById('audioGrid');
+
+    if (videoTabBtn) videoTabBtn.classList.remove('active');
+    if (audioTabBtn) audioTabBtn.classList.remove('active');
+    if (videoTabContent) videoTabContent.classList.remove('active');
+    if (audioTabContent) audioTabContent.classList.remove('active');
+
+    if (type === 'video') {
+        if (videoTabBtn) videoTabBtn.classList.add('active');
+        if (videoTabContent) {
+            videoTabContent.style.display = 'block';
+            videoTabContent.classList.add('active');
+        }
+        if (audioTabContent) {
+            audioTabContent.style.display = 'none';
+        }
+        renderFormatCards(videoGrid, globalData.videoFormats || [], 'mp4');
+        if (globalData.videoFormats && globalData.videoFormats.length > 0) {
+            setActiveFormat(globalData.videoFormats[0].url, globalData.videoFormats[0].type);
+        } else {
+            setActiveFormat('', 'mp4');
+        }
+    } else {
+        if (audioTabBtn) audioTabBtn.classList.add('active');
+        if (audioTabContent) {
+            audioTabContent.style.display = 'block';
+            audioTabContent.classList.add('active');
+        }
+        if (videoTabContent) {
+            videoTabContent.style.display = 'none';
+        }
+        renderFormatCards(audioGrid, globalData.audioFormats || [], 'mp3');
+        if (globalData.audioFormats && globalData.audioFormats.length > 0) {
+            setActiveFormat(globalData.audioFormats[0].url, globalData.audioFormats[0].type);
+        } else {
+            setActiveFormat('', 'mp3');
+        }
+    }
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 25000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function fetchMedia() {
+    const t = translations[currentLang];
+    const rawInput = document.getElementById('mediaInput')?.value.trim() || '';
+    const cleanUrl = extractUrl(rawInput) || rawInput;
+
+    const resultBox = document.getElementById('resultBox');
+    const statusMsg = document.getElementById('statusMsg');
+    const previewCard = document.getElementById('previewCard');
+    const mediaOptionsSection = document.getElementById('mediaOptionsSection');
+    const videoGrid = document.getElementById('videoGrid');
+    const audioGrid = document.getElementById('audioGrid');
+    const fetchBtn = document.getElementById('fetchBtn');
+
+    if (!cleanUrl || !isValidYouTubeUrl(cleanUrl)) {
+        alert(t.errorLink);
+        return;
+    }
+
+    if (fetchBtn) fetchBtn.disabled = true;
+    if (resultBox) resultBox.style.display = 'block';
+    if (statusMsg) {
+        statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px;"></i> ${t.processing}`;
+    }
+
+    if (previewCard) previewCard.style.display = 'none';
+    if (mediaOptionsSection) mediaOptionsSection.style.display = 'none';
+    if (videoGrid) videoGrid.innerHTML = '';
+    if (audioGrid) audioGrid.innerHTML = '';
+
+    try {
+        const backendUrl = `${BACKEND_BASE_URL}/download?url=${encodeURIComponent(cleanUrl)}`;
+        let response;
+
+        try {
+            response = await fetchWithTimeout(backendUrl, {}, 25000);
+        } catch (firstErr) {
+            if (statusMsg) {
+                statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px;"></i> Waking up server, please wait...`;
+            }
+            response = await fetchWithTimeout(backendUrl, {}, 30000);
+        }
+
+        const data = await response.json();
+
+        if (response.ok && data.status === 'success') {
+            const hasVideo = Array.isArray(data.videoFormats) && data.videoFormats.length > 0;
+            const hasAudio = Array.isArray(data.audioFormats) && data.audioFormats.length > 0;
+
+            if (!hasVideo && !hasAudio) {
+                alert(t.errorProcess);
+                if (resultBox) resultBox.style.display = 'none';
+                return;
+            }
+
+            globalData = data;
+            activeMediaTitle = data.title || 'Lim3rd_Media';
+            if (statusMsg) statusMsg.innerText = '';
+            if (document.getElementById('titleText')) document.getElementById('titleText').innerText = data.title;
+            if (document.getElementById('authorText')) document.getElementById('authorText').innerText = data.author;
+
+            const thumbImg = document.getElementById('thumbImg');
+            if (thumbImg) {
+                if (data.thumbnail) {
+                    thumbImg.src = data.thumbnail;
+                    thumbImg.style.display = 'block';
+                } else {
+                    thumbImg.style.display = 'none';
+                }
+            }
+
+            if (previewCard) previewCard.style.display = 'flex';
+            if (mediaOptionsSection) mediaOptionsSection.style.display = 'block';
+
+            const modeButtons = document.querySelectorAll('.mode-switch .mode-btn');
+            const videoTabBtn = modeButtons[0] || null;
+            const audioTabBtn = modeButtons[1] || null;
+
+            if (videoTabBtn) {
+                videoTabBtn.disabled = false;
+                videoTabBtn.style.display = 'flex';
+            }
+            if (audioTabBtn) {
+                audioTabBtn.disabled = false;
+                audioTabBtn.style.display = 'flex';
+            }
+
+            if (hasVideo) {
+                switchTab('video');
+            } else if (hasAudio) {
+                switchTab('audio');
+            }
+        } else {
+            alert(data.error || t.errorProcess);
+            if (resultBox) resultBox.style.display = 'none';
+        }
+    } catch (err) {
+        alert(t.errorConn);
+        if (resultBox) resultBox.style.display = 'none';
+    } finally {
+        if (fetchBtn) fetchBtn.disabled = false;
+    }
+}
+
+const downloadNowBtnEl = document.getElementById('downloadNowBtn');
+if (downloadNowBtnEl) {
+    downloadNowBtnEl.onclick = async (e) => {
+        e.preventDefault();
+        if (!activeDownloadUrl) return;
+
+        const downloadBtn = downloadNowBtnEl;
+        const originalText = downloadBtn.innerHTML;
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Preparing...`;
+
+        const cleanBaseTitle = (activeMediaTitle || 'Lim3rd_Media')
+            .replace(/\s*-\s*Lim3rd$/i, '')
+            .trim();
+        const finalTitleWithBrand = `${cleanBaseTitle} - Lim3rd`;
+        const filename = `${finalTitleWithBrand}.${activeDownloadExt}`;
+
+        const proxiedUrl = `${BACKEND_BASE_URL}/proxy-download?url=${encodeURIComponent(activeDownloadUrl)}&title=${encodeURIComponent(finalTitleWithBrand)}&ext=${encodeURIComponent(activeDownloadExt)}`;
+
+        try {
+            const res = await fetch(proxiedUrl);
+            if (!res.ok) {
+                let errMsg = 'Unable to download playable file.';
+                try {
+                    const errJson = await res.json();
+                    if (errJson?.error) errMsg = errJson.error;
+                } catch (_) {}
+                alert(errMsg);
+                return;
+            }
+
+            const blob = await res.blob();
+            if (!blob || blob.size < 1024) {
+                alert('Downloaded file is empty or incomplete.');
+                return;
+            }
+
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.setAttribute('download', filename);
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+        } catch (err) {
+            alert('Download failed. Please try again.');
+        } finally {
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = originalText;
+        }
+    };
+}

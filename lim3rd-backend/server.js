@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const { Readable } = require('stream');
-const { Innertube } = require('youtubei.js');
 
 const app = express();
 app.use(cors());
@@ -9,22 +8,6 @@ app.use(express.json());
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || process.env.key;
 const AUDIO_API_HOST = 'yt-search-and-download-mp3.p.rapidapi.com';
-
-let ytClientPromise = null;
-
-async function getYouTubeClient() {
-    if (!ytClientPromise) {
-        ytClientPromise = Innertube.create({
-            lang: 'en',
-            location: 'PH',
-            retrieve_player: true
-        }).catch((err) => {
-            ytClientPromise = null;
-            throw err;
-        });
-    }
-    return ytClientPromise;
-}
 
 function sanitizeFilename(name) {
     return (name || 'Lim3rd_Media')
@@ -161,76 +144,24 @@ async function resolveRedirectUrl(url) {
     }
 }
 
-async function fetchYouTubeVideo(youtubeUrl) {
+async function fetchYouTubeOEmbed(youtubeUrl) {
     const videoId = extractYouTubeId(youtubeUrl);
-    if (!videoId) return null;
-
+    const fallbackThumb = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '';
     try {
-        const yt = await getYouTubeClient();
-        const info = await yt.getBasicInfo(videoId);
-
-        const title = info?.basic_info?.title || 'Lim3rd Video File';
-        const thumbnail =
-            info?.basic_info?.thumbnail?.slice(-1)?.[0]?.url ||
-            `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
-
-        const streamingData = info?.streaming_data;
-        const allFormats = [
-            ...(streamingData?.formats || []),
-            ...(streamingData?.adaptive_formats || [])
-        ];
-
-        const mp4Candidates = [];
-        for (const f of allFormats) {
-            const mime = String(f?.mime_type || '');
-            if (!mime.includes('video/mp4')) continue;
-
-            let url = f?.url || null;
-            if (!url && typeof f?.decipher === 'function') {
-                try {
-                    url = f.decipher(yt.session.player);
-                } catch (_) {
-                    url = null;
-                }
-            }
-
-            if (typeof url === 'string' && isPlayableDirectUrl(url)) {
-                const height = Number(f.height || 0);
-                const hasAudio = Boolean(f.has_audio);
-                mp4Candidates.push({
-                    url,
-                    height,
-                    hasAudio,
-                    qualityLabel: height > 0
-                        ? `${height}p${hasAudio ? ' (Low/MP4)' : ' (Video Only)'}`
-                        : 'MP4 Stream'
-                });
-            }
-        }
-
-        mp4Candidates.sort((a, b) => {
-            const aLow = a.height > 0 && a.height <= 360 ? 0 : 1;
-            const bLow = b.height > 0 && b.height <= 360 ? 0 : 1;
-            if (aLow !== bLow) return aLow - bLow;
-            if (a.hasAudio !== b.hasAudio) return a.hasAudio ? -1 : 1;
-            return a.height - b.height;
-        });
-
-        const picked = mp4Candidates[0];
-        if (picked?.url) {
-            return {
-                title,
-                thumbnail,
-                formats: [
-                    { quality: picked.qualityLabel, type: 'MP4', url: picked.url }
-                ]
-            };
-        }
-    } catch (err) {
-        console.error('youtubei.js video error:', err?.message || err);
+        const res = await fetchWithTimeout(
+            `https://www.youtube.com/oembed?url=${encodeURIComponent(youtubeUrl)}&format=json`,
+            {},
+            8000
+        );
+        if (!res.ok) return { title: 'Lim3rd Media File', thumbnail: fallbackThumb };
+        const data = await res.json();
+        return {
+            title: data?.title || 'Lim3rd Media File',
+            thumbnail: data?.thumbnail_url || fallbackThumb
+        };
+    } catch (_) {
+        return { title: 'Lim3rd Media File', thumbnail: fallbackThumb };
     }
-
-    return null;
 }
 
 async function fetchYouTubeAudio(youtubeUrl) {
@@ -258,7 +189,7 @@ async function fetchYouTubeAudio(youtubeUrl) {
 
         if (apiResponse.ok && audioUrl) {
             return {
-                title: extractTitle(result, 'Lim3rd Audio Track'),
+                title: extractTitle(result, ''),
                 thumbnail: extractThumbnail(result),
                 formats: [
                     { quality: 'High Quality', type: 'MP3', url: audioUrl },
@@ -388,26 +319,23 @@ app.get('/download', async (req, res) => {
         }
 
         if (targetURL.includes('youtube.com') || targetURL.includes('youtu.be')) {
-            const [videoData, audioData] = await Promise.all([
-                fetchYouTubeVideo(targetURL).catch(() => null),
+            const [oembedData, audioData] = await Promise.all([
+                fetchYouTubeOEmbed(targetURL).catch(() => ({ title: 'Lim3rd Media File', thumbnail: '' })),
                 fetchYouTubeAudio(targetURL).catch(() => null)
             ]);
 
-            const videoFormats = videoData ? videoData.formats : [];
             const audioFormats = audioData ? audioData.formats : [];
+            const title = audioData?.title || oembedData?.title || 'Lim3rd Media File';
+            const thumbnail = audioData?.thumbnail || oembedData?.thumbnail || '';
 
-            if (videoFormats.length > 0 || audioFormats.length > 0) {
-                return res.json({
-                    status: 'success',
-                    title: videoData?.title || audioData?.title || 'Lim3rd Media File',
-                    author: 'Lim3rd Universal Downloader',
-                    thumbnail: videoData?.thumbnail || audioData?.thumbnail || '',
-                    videoFormats,
-                    audioFormats
-                });
-            }
-
-            return res.status(500).json({ error: 'Unable to extract video or audio from this YouTube link.' });
+            return res.json({
+                status: 'success',
+                title,
+                author: 'Lim3rd Universal Downloader',
+                thumbnail,
+                videoFormats: [],
+                audioFormats
+            });
         }
 
         return res.status(400).json({ error: 'Please input a YouTube link' });
