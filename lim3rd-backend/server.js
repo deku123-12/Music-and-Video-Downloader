@@ -319,11 +319,14 @@ app.get('/proxy-download', async (req, res) => {
         const upstream = await fetchWithTimeout(fileUrl, {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-                'Referer': 'https://www.youtube.com/'
+                'Referer': 'https://www.youtube.com/',
+                'Origin': 'https://www.youtube.com',
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9'
             }
         }, 25000);
 
-        const contentType = upstream.headers.get('content-type') || '';
+        const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
         const isInvalidMediaType =
             contentType.includes('text/html') ||
             contentType.includes('application/json') ||
@@ -332,7 +335,8 @@ app.get('/proxy-download', async (req, res) => {
 
         if (!upstream.ok || !upstream.body || isInvalidMediaType) {
             return res.status(502).json({
-                error: 'Media stream is unavailable or not a direct playable file.'
+                error: `YouTube/GoogleVideo blocked server proxy (${upstream.status}). Try another format or audio MP3.`,
+                directUrl: fileUrl
             });
         }
 
