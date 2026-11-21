@@ -180,27 +180,34 @@ async function fetchYouTubeVideo(youtubeUrl) {
             ...(streamingData?.adaptive_formats || [])
         ];
 
-        const mp4Candidates = allFormats
-            .filter((f) => {
-                const mime = String(f?.mime_type || '');
-                const url = f?.url || (typeof f?.decipher === 'function' ? f.decipher(yt.session.player) : null);
-                return mime.includes('video/mp4') && typeof url === 'string' && isPlayableDirectUrl(url);
-            })
-            .map((f) => {
-                const url = f.url || f.decipher(yt.session.player);
+        const mp4Candidates = [];
+        for (const f of allFormats) {
+            const mime = String(f?.mime_type || '');
+            if (!mime.includes('video/mp4')) continue;
+
+            let url = f?.url || null;
+            if (!url && typeof f?.decipher === 'function') {
+                try {
+                    url = f.decipher(yt.session.player);
+                } catch (_) {
+                    url = null;
+                }
+            }
+
+            if (typeof url === 'string' && isPlayableDirectUrl(url)) {
                 const height = Number(f.height || 0);
                 const hasAudio = Boolean(f.has_audio);
-                return {
+                mp4Candidates.push({
                     url,
                     height,
                     hasAudio,
                     qualityLabel: height > 0
                         ? `${height}p${hasAudio ? ' (Low/MP4)' : ' (Video Only)'}`
                         : 'MP4 Stream'
-                };
-            });
+                });
+            }
+        }
 
-        // Unahin ang low quality (<= 360p) na may audio kung mayroon
         mp4Candidates.sort((a, b) => {
             const aLow = a.height > 0 && a.height <= 360 ? 0 : 1;
             const bLow = b.height > 0 && b.height <= 360 ? 0 : 1;
@@ -347,7 +354,6 @@ app.get('/download', async (req, res) => {
 
         const targetURL = isDirectYouTube ? rawURL : await resolveRedirectUrl(rawURL);
 
-        // Facebook Handler
         if (targetURL.includes('facebook.com') || targetURL.includes('fb.watch') || targetURL.includes('fb.me')) {
             const fbApiResponse = await fetchWithTimeout(
                 `https://apis.davidcyriltech.my.id/download/fbdl?url=${encodeURIComponent(targetURL)}`,
@@ -381,7 +387,6 @@ app.get('/download', async (req, res) => {
             }
         }
 
-        // YouTube Handler
         if (targetURL.includes('youtube.com') || targetURL.includes('youtu.be')) {
             const [videoData, audioData] = await Promise.all([
                 fetchYouTubeVideo(targetURL).catch(() => null),
