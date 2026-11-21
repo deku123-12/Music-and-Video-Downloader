@@ -1,1 +1,423 @@
-const _0x36b6fe=_0x4f8b;(function(_0x52b6c1,_0x48c15c){const _0x44b108=_0x4f8b,_0x5f441d=_0x52b6c1();while(!![]){try{const _0x4f2ac8=-parseInt(_0x44b108(0x187))/0x1+parseInt(_0x44b108(0x193))/0x2+-parseInt(_0x44b108(0x15a))/0x3*(-parseInt(_0x44b108(0x113))/0x4)+parseInt(_0x44b108(0x127))/0x5*(parseInt(_0x44b108(0x160))/0x6)+-parseInt(_0x44b108(0x11a))/0x7+-parseInt(_0x44b108(0x155))/0x8*(parseInt(_0x44b108(0x140))/0x9)+parseInt(_0x44b108(0x17a))/0xa*(parseInt(_0x44b108(0x186))/0xb);if(_0x4f2ac8===_0x48c15c)break;else _0x5f441d['push'](_0x5f441d['shift']());}catch(_0x4b0876){_0x5f441d['push'](_0x5f441d['shift']());}}}(_0x48c6,0x52ecb));const express=require(_0x36b6fe(0x10f)),cors=require(_0x36b6fe(0x15e)),{Readable}=require(_0x36b6fe(0x16e)),app=express();app[_0x36b6fe(0x15c)](cors()),app[_0x36b6fe(0x15c)](express[_0x36b6fe(0x18e)]());const RAPIDAPI_KEY=process.env.RAPIDAPI_KEY||process.env.key,AUDIO_API_HOST=_0x36b6fe(0x149),VIDEO_API_HOST=_0x36b6fe(0x169);function sanitizeFilename(_0x3e6284){const _0x8e6313=_0x36b6fe;return(_0x3e6284||_0x8e6313(0x172))['replace'](/[<>:"/\\|?*\x00-\x1F]/g,'')[_0x8e6313(0x120)](/\s+/g,'\x20')['trim']()[_0x8e6313(0x18c)](0x0,0x64)||'Lim3rd_Media';}function formatTitleWithLim3rd(_0x3c4d2d){const _0x58c899=_0x36b6fe,_0x581a24=sanitizeFilename(_0x3c4d2d)[_0x58c899(0x120)](/\s*-\s*Lim3rd$/i,'')[_0x58c899(0x154)]()||'Lim3rd_Media';return''[_0x58c899(0x15b)](_0x581a24,'\x20-\x20Lim3rd');}function extractYouTubeId(_0x1b0e01=''){const _0x34fbad=_0x36b6fe;try{const _0x2bf9dc=_0x1b0e01[_0x34fbad(0x154)](),_0x3516f8=_0x2bf9dc['match'](/(?:youtu\.be\/|[?&]v=|\/(?:embed|shorts|v)\/)([a-zA-Z0-9_-]{11})(?:[?&/]|$)/g);if(_0x3516f8&&_0x3516f8[_0x34fbad(0x183)]>0x0){const _0x4b8f68=_0x3516f8[_0x3516f8['length']-0x1],_0x5303ba=_0x4b8f68['match'](/([a-zA-Z0-9_-]{11})/);if(_0x5303ba&&/^[a-zA-Z0-9_-]{11}$/[_0x34fbad(0x13b)](_0x5303ba[0x1]))return _0x5303ba[0x1];}if(/^[a-zA-Z0-9_-]{11}$/[_0x34fbad(0x13b)](_0x2bf9dc))return _0x2bf9dc;}catch(_0x206b2f){}return null;}function isPlayableDirectUrl(_0x101529=''){const _0x1f96f5=_0x36b6fe;if(typeof _0x101529!==_0x1f96f5(0x11f)||!_0x101529[_0x1f96f5(0x170)](_0x1f96f5(0x12b)))return![];if(_0x101529[_0x1f96f5(0x182)]('.m3u8')||_0x101529['includes']('/manifest/hls_')||_0x101529[_0x1f96f5(0x182)](_0x1f96f5(0x176)))return![];if(_0x101529[_0x1f96f5(0x182)]('ytimg.com')||_0x101529[_0x1f96f5(0x182)](_0x1f96f5(0x148))||/\.(jpg|jpeg|png|webp|gif)(\?|$)/i[_0x1f96f5(0x13b)](_0x101529))return![];return!![];}function extractMuxerVideoInfo(_0x172edb,_0x272c77,_0x312e7a){const _0x258f2b=_0x36b6fe;if(!_0x172edb||typeof _0x172edb!==_0x258f2b(0x164))return null;const _0x4236b2=_0x172edb[_0x258f2b(0x12e)]||_0x172edb['download_url']||_0x172edb[_0x258f2b(0x142)]||_0x172edb[_0x258f2b(0x11b)]||_0x172edb[_0x258f2b(0x121)]||_0x172edb['mp4']||_0x172edb[_0x258f2b(0x16a)]?.[_0x258f2b(0x12e)]||_0x172edb[_0x258f2b(0x16a)]?.[_0x258f2b(0x161)]||_0x172edb[_0x258f2b(0x168)]?.[_0x258f2b(0x12e)]||null;if(typeof _0x4236b2===_0x258f2b(0x11f)&&isPlayableDirectUrl(_0x4236b2)){const _0x56114c=String(_0x172edb[_0x258f2b(0x138)]||_0x172edb[_0x258f2b(0x16a)]?.['filename']||''),_0x108d6e=/_mute/i[_0x258f2b(0x13b)](_0x56114c);return{'url':_0x4236b2,'qualityLabel':''[_0x258f2b(0x15b)](_0x312e7a)[_0x258f2b(0x15b)](_0x108d6e?_0x258f2b(0x13d):''),'title':extractTitle(_0x172edb),'thumbnail':extractThumbnail(_0x172edb,_0x272c77)};}return null;}function findAnyMediaUrl(_0x3810b2){const _0x35b750=_0x36b6fe;if(!_0x3810b2)return null;if(typeof _0x3810b2===_0x35b750(0x11f)){if(isPlayableDirectUrl(_0x3810b2))return _0x3810b2;return null;}if(Array[_0x35b750(0x136)](_0x3810b2))for(const _0x3bb3d1 of _0x3810b2){const _0x3e3c35=findAnyMediaUrl(_0x3bb3d1);if(_0x3e3c35)return _0x3e3c35;}else{if(typeof _0x3810b2===_0x35b750(0x164)){const _0x4caf2a=['download_url',_0x35b750(0x142),_0x35b750(0x178),_0x35b750(0x11b),_0x35b750(0x12e),_0x35b750(0x131),_0x35b750(0x147),_0x35b750(0x121),_0x35b750(0x179),_0x35b750(0x114),_0x35b750(0x173),'src'];for(const _0x593bb7 of _0x4caf2a){if(_0x3810b2[_0x593bb7]){const _0xe21aa1=findAnyMediaUrl(_0x3810b2[_0x593bb7]);if(_0xe21aa1)return _0xe21aa1;}}for(const _0x463b07 of Object[_0x35b750(0x150)](_0x3810b2)){if(_0x463b07===_0x35b750(0x115)||_0x463b07[_0x35b750(0x18d)]()['includes']('thumb')||_0x463b07[_0x35b750(0x18d)]()[_0x35b750(0x182)](_0x35b750(0x167)))continue;const _0x21c9da=findAnyMediaUrl(_0x3810b2[_0x463b07]);if(_0x21c9da)return _0x21c9da;}}}return null;}function extractTitle(_0x34ecc3,_0x1df4d2='Lim3rd\x20Media\x20File'){const _0x451ffe=_0x36b6fe;return _0x34ecc3?.['title']||_0x34ecc3?.['videoDetails']?.[_0x451ffe(0x153)]||_0x34ecc3?.[_0x451ffe(0x16a)]?.['title']||_0x34ecc3?.[_0x451ffe(0x168)]?.['title']||_0x34ecc3?.[_0x451ffe(0x177)]?.[_0x451ffe(0x153)]||_0x1df4d2;}function extractThumbnail(_0x440dce,_0xf1a491=''){const _0x3c77ff=_0x36b6fe,_0x2ba2bf=_0x440dce?.[_0x3c77ff(0x191)]||_0x440dce?.[_0x3c77ff(0x126)]||_0x440dce?.[_0x3c77ff(0x167)]||_0x440dce?.[_0x3c77ff(0x110)]?.['thumbnail']?.[_0x3c77ff(0x132)]?.[_0x3c77ff(0x18c)](-0x1)?.[0x0]?.[_0x3c77ff(0x12e)]||_0x440dce?.[_0x3c77ff(0x16a)]?.[_0x3c77ff(0x191)]||_0x440dce?.[_0x3c77ff(0x16a)]?.[_0x3c77ff(0x126)]||_0x440dce?.['data']?.[_0x3c77ff(0x191)]||'';if(_0x2ba2bf)return _0x2ba2bf;return _0xf1a491?_0x3c77ff(0x16b)[_0x3c77ff(0x15b)](_0xf1a491,_0x3c77ff(0x162)):'';}async function fetchWithTimeout(_0x24fb9f,_0x5428cc={},_0x583822=0x3a98){const _0x5368dc=_0x36b6fe,_0x38e860=new AbortController(),_0x7a8389=setTimeout(()=>_0x38e860[_0x5368dc(0x135)](),_0x583822);try{return await fetch(_0x24fb9f,{..._0x5428cc,'signal':_0x38e860['signal']});}finally{clearTimeout(_0x7a8389);}}async function resolveRedirectUrl(_0x44b31a){const _0x1bf757=_0x36b6fe;try{const _0x47f039=await fetchWithTimeout(_0x44b31a,{'method':'GET','redirect':'follow','headers':{'User-Agent':_0x1bf757(0x188)}},0x2710);return _0x47f039[_0x1bf757(0x12e)]||_0x44b31a;}catch(_0x3cf885){return _0x44b31a;}}async function fetchMuxedVideo(_0x41b3b2,_0x41b787=_0x36b6fe(0x165),_0x3dc76e='360p\x20(Low)'){const _0x997d1a=_0x36b6fe;if(!/^[a-zA-Z0-9_-]{11}$/[_0x997d1a(0x13b)](_0x41b3b2))return null;const _0x788444=_0x997d1a(0x133)[_0x997d1a(0x15b)](VIDEO_API_HOST,_0x997d1a(0x143))[_0x997d1a(0x15b)](encodeURIComponent(_0x41b3b2))+_0x997d1a(0x16f)['concat'](encodeURIComponent(_0x41b787))+_0x997d1a(0x139)+_0x997d1a(0x171)+_0x997d1a(0x11c)+_0x997d1a(0x17c);try{const _0x1cc138=await fetchWithTimeout(_0x788444,{'method':_0x997d1a(0x17e),'headers':{'x-rapidapi-host':VIDEO_API_HOST,'x-rapidapi-key':RAPIDAPI_KEY}},0x3e80),_0x46120c=await _0x1cc138[_0x997d1a(0x192)]();let _0x19cd4f={};try{_0x19cd4f=JSON['parse'](_0x46120c);}catch(_0x37ee84){return null;}if(_0x19cd4f?.[_0x997d1a(0x159)])return null;const _0x47bf93=extractMuxerVideoInfo(_0x19cd4f,_0x41b3b2,_0x3dc76e);if(_0x1cc138['ok']&&_0x47bf93?.[_0x997d1a(0x12e)])return _0x47bf93;}catch(_0x56209f){}return null;}async function fetchYouTubeVideo(_0x496a83){const _0x4ab710=_0x36b6fe,_0x2e2712=extractYouTubeId(_0x496a83);if(!_0x2e2712)return null;let _0x59ad7e=await fetchMuxedVideo(_0x2e2712,_0x4ab710(0x165),_0x4ab710(0x152))['catch'](()=>null);!_0x59ad7e?.['url']&&(_0x59ad7e=await fetchMuxedVideo(_0x2e2712,_0x4ab710(0x122),_0x4ab710(0x14e))[_0x4ab710(0x15f)](()=>null));!_0x59ad7e?.[_0x4ab710(0x12e)]&&(_0x59ad7e=await fetchMuxedVideo(_0x2e2712,_0x4ab710(0x13e),_0x4ab710(0x158))[_0x4ab710(0x15f)](()=>null));const _0x358ea3=[];_0x59ad7e?.[_0x4ab710(0x12e)]&&_0x358ea3[_0x4ab710(0x146)]({'quality':_0x59ad7e[_0x4ab710(0x151)],'type':_0x4ab710(0x189),'url':_0x59ad7e[_0x4ab710(0x12e)]});if(_0x358ea3[_0x4ab710(0x183)]>0x0)return{'title':_0x59ad7e?.['title']||_0x4ab710(0x111),'thumbnail':_0x59ad7e?.[_0x4ab710(0x191)]||_0x4ab710(0x16b)[_0x4ab710(0x15b)](_0x2e2712,_0x4ab710(0x162)),'formats':_0x358ea3};return null;}function _0x48c6(){const _0x5d0f01=['mpegurl','setHeader','push','file','googleusercontent.com','yt-search-and-download-mp3.p.rapidapi.com','Missing\x20media\x20URL','Proxy\x20download\x20error:','cf-ipcountry','HLS\x20playlist\x20(.m3u8)\x20cannot\x20be\x20saved\x20directly\x20as\x20a\x20playable\x20MP4\x20file.','240p\x20(Low)','listen','keys','qualityLabel','360p\x20(Low)','title','trim','23656TBYVas','Lim3rd\x20Audio\x20Track','Content-Type','144p\x20(Lite)','error','19359EcAvfp','concat','use','headers','cors','catch','8076rNNnDN','download_url','/hqdefault.jpg','video/mp4','object','360','fb.watch','image','data','cloud-api-hub-youtube-downloader.p.rapidapi.com','result','https://i.ytimg.com/vi/','log','status','stream','&quality=','startsWith','&audioFormat=best','Lim3rd_Media','href','application/json','audio/mpeg','/playlist/','info','mp3','audio','40CqZdCC','facebook.com','&videoOnly=false','query','GET','youtube.com','/mp3?url=','Please\x20input\x20a\x20YouTube\x20link','includes','length','Lim3rd\x20Universal\x20Downloader','x-country-code','2478938RrWtpG','620833eBjXcX','Mozilla/5.0\x20(Windows\x20NT\x2010.0;\x20Win64;\x20x64)\x20AppleWebKit/537.36\x20(KHTML,\x20like\x20Gecko)\x20Chrome/124.0.0.0\x20Safari/537.36','MP4','pipe','Audio\x20Stream','slice','toLowerCase','json','toUpperCase','MP3','thumbnail','text','415320YtsRbk','express','videoDetails','Lim3rd\x20Video\x20File','Content-Disposition','276oeTuWM','mp4','manifest_url','Server\x20running\x20on\x20port\x20','Lim3rd\x20Facebook\x20Media','/region','.m3u8','3809288CIQRCO','link','&audioOnly=false','fb.me','SD\x20/\x20360p','string','replace','video','240','attachment;\x20filename=\x22','High\x20Quality','body','thumb','2265IdfMse','content-length','Unable\x20to\x20extract\x20video\x20or\x20audio\x20from\x20this\x20YouTube\x20link.','https://apis.davidcyriltech.my.id/download/fbdl?url=','http','get','Content-Length','url','success','Standard\x20Quality','dlink','thumbnails','https://','youtu.be','abort','isArray','toString','filename','&codec=h264','text/html','test','/proxy-download','\x20(No\x20Audio)','144','formats','2007kYSMnQ','Lim3rd\x20Media\x20File','downloadUrl','/muxer?id='];_0x48c6=function(){return _0x5d0f01;};return _0x48c6();}function _0x4f8b(_0x169828,_0x2d9cc4){_0x169828=_0x169828-0x10f;const _0x48c6b8=_0x48c6();let _0x4f8bfc=_0x48c6b8[_0x169828];return _0x4f8bfc;}async function fetchYouTubeAudio(_0x4b6fae){const _0x57368a=_0x36b6fe,_0xfde98=_0x57368a(0x133)[_0x57368a(0x15b)](AUDIO_API_HOST,_0x57368a(0x180))[_0x57368a(0x15b)](encodeURIComponent(_0x4b6fae));try{const _0x28d8a9=await fetchWithTimeout(_0xfde98,{'method':_0x57368a(0x17e),'headers':{'x-rapidapi-host':AUDIO_API_HOST,'x-rapidapi-key':RAPIDAPI_KEY}},0x3a98),_0x37e3eb=await _0x28d8a9[_0x57368a(0x192)]();let _0x4e626a={};try{_0x4e626a=JSON['parse'](_0x37e3eb);}catch(_0x44d33d){return null;}const _0x7fde28=findAnyMediaUrl(_0x4e626a);if(_0x28d8a9['ok']&&_0x7fde28)return{'title':extractTitle(_0x4e626a,_0x57368a(0x156)),'thumbnail':extractThumbnail(_0x4e626a),'formats':[{'quality':_0x57368a(0x124),'type':_0x57368a(0x190),'url':_0x7fde28},{'quality':_0x57368a(0x130),'type':_0x57368a(0x190),'url':_0x7fde28}]};}catch(_0x295d3a){}return null;}app[_0x36b6fe(0x12c)](_0x36b6fe(0x118),(_0xbe6715,_0x3b0da0)=>{const _0x4f10fe=_0x36b6fe,_0xbb8e02=_0xbe6715['headers'][_0x4f10fe(0x14c)],_0x1d6289=_0xbe6715[_0x4f10fe(0x15d)]['x-vercel-ip-country'],_0x30d7e9=_0xbe6715['headers'][_0x4f10fe(0x185)],_0x379574=(_0xbb8e02||_0x1d6289||_0x30d7e9||'PH')[_0x4f10fe(0x137)]()[_0x4f10fe(0x154)]()[_0x4f10fe(0x18f)]();return _0x3b0da0['json']({'countryCode':_0x379574});}),app[_0x36b6fe(0x12c)](_0x36b6fe(0x13c),async(_0x37cb2a,_0x22f670)=>{const _0x1456d4=_0x36b6fe,_0x1a8d5e=_0x37cb2a[_0x1456d4(0x17d)]['url'],_0x33dc64=_0x37cb2a[_0x1456d4(0x17d)]['title']||'Lim3rd_Media',_0x42b7ba=(_0x37cb2a[_0x1456d4(0x17d)]['ext']||'mp4')[_0x1456d4(0x18d)]()[_0x1456d4(0x120)](/[^a-z0-9]/g,'')||_0x1456d4(0x114);if(!_0x1a8d5e)return _0x22f670['status'](0x190)['json']({'error':_0x1456d4(0x14a)});if(_0x42b7ba===_0x1456d4(0x114)&&(_0x1a8d5e[_0x1456d4(0x182)](_0x1456d4(0x119))||_0x1a8d5e[_0x1456d4(0x182)]('/manifest/hls_')))return _0x22f670['status'](0x190)[_0x1456d4(0x18e)]({'error':_0x1456d4(0x14d)});try{const _0x2c75d6=await fetch(_0x1a8d5e,{'headers':{'User-Agent':_0x1456d4(0x188),'Referer':'https://www.youtube.com/'}}),_0x554f24=_0x2c75d6[_0x1456d4(0x15d)][_0x1456d4(0x12c)]('content-type')||'',_0x5aefd3=_0x554f24[_0x1456d4(0x182)](_0x1456d4(0x13a))||_0x554f24[_0x1456d4(0x182)](_0x1456d4(0x174))||_0x554f24[_0x1456d4(0x182)]('text/plain')||_0x554f24[_0x1456d4(0x182)](_0x1456d4(0x144));if(!_0x2c75d6['ok']||!_0x2c75d6[_0x1456d4(0x125)]||_0x5aefd3)return _0x22f670[_0x1456d4(0x16d)](0x1f6)[_0x1456d4(0x18e)]({'error':'Media\x20stream\x20is\x20unavailable\x20or\x20not\x20a\x20direct\x20playable\x20file.'});const _0x44417f=formatTitleWithLim3rd(_0x33dc64),_0x250226=''[_0x1456d4(0x15b)](_0x44417f,'.')[_0x1456d4(0x15b)](_0x42b7ba),_0x10fea1=_0x554f24||(_0x42b7ba===_0x1456d4(0x178)?_0x1456d4(0x175):_0x1456d4(0x163)),_0x4905de=_0x2c75d6[_0x1456d4(0x15d)][_0x1456d4(0x12c)](_0x1456d4(0x128));_0x22f670[_0x1456d4(0x145)](_0x1456d4(0x157),_0x10fea1),_0x22f670[_0x1456d4(0x145)](_0x1456d4(0x112),_0x1456d4(0x123)[_0x1456d4(0x15b)](_0x250226[_0x1456d4(0x120)](/"/g,''),'\x22;\x20filename*=UTF-8\x27\x27')[_0x1456d4(0x15b)](encodeURIComponent(_0x250226))),_0x4905de&&_0x22f670[_0x1456d4(0x145)](_0x1456d4(0x12d),_0x4905de),Readable['fromWeb'](_0x2c75d6[_0x1456d4(0x125)])[_0x1456d4(0x18a)](_0x22f670);}catch(_0x9e6239){return console['error'](_0x1456d4(0x14b),_0x9e6239),_0x22f670[_0x1456d4(0x16d)](0x1f4)[_0x1456d4(0x18e)]({'error':'Failed\x20to\x20stream\x20media\x20file.'});}}),app['get']('/download',async(_0x41d94d,_0x3795f1)=>{const _0x965917=_0x36b6fe,_0x43a94b=_0x41d94d[_0x965917(0x17d)][_0x965917(0x12e)];if(!_0x43a94b)return _0x3795f1[_0x965917(0x16d)](0x190)['json']({'error':_0x965917(0x181)});try{const _0x331474=_0x43a94b[_0x965917(0x182)](_0x965917(0x17f))||_0x43a94b[_0x965917(0x182)](_0x965917(0x134)),_0x3756a1=_0x331474?_0x43a94b:await resolveRedirectUrl(_0x43a94b);if(_0x3756a1[_0x965917(0x182)](_0x965917(0x17b))||_0x3756a1[_0x965917(0x182)](_0x965917(0x166))||_0x3756a1[_0x965917(0x182)](_0x965917(0x11d))){const _0x435487=await fetchWithTimeout(_0x965917(0x12a)['concat'](encodeURIComponent(_0x3756a1)),{},0x3a98),_0x25f34e=await _0x435487[_0x965917(0x18e)]();if(_0x25f34e&&_0x25f34e[_0x965917(0x16d)]===0xc8&&_0x25f34e[_0x965917(0x16a)]){const _0xdd60e3=_0x25f34e[_0x965917(0x16a)],_0x3d17a9=[];(_0xdd60e3['hd']||_0xdd60e3[_0x965917(0x12e)])&&_0x3d17a9[_0x965917(0x146)]({'quality':'HD\x20/\x20720p','type':_0x965917(0x189),'url':_0xdd60e3['hd']||_0xdd60e3[_0x965917(0x12e)]});_0xdd60e3['sd']&&_0x3d17a9[_0x965917(0x146)]({'quality':_0x965917(0x11e),'type':'MP4','url':_0xdd60e3['sd']});const _0x6e1cf3=_0xdd60e3[_0x965917(0x179)]?[{'quality':_0x965917(0x18b),'type':_0x965917(0x190),'url':_0xdd60e3[_0x965917(0x179)]}]:[];return _0x3795f1['json']({'status':_0x965917(0x12f),'title':_0xdd60e3[_0x965917(0x153)]||_0x965917(0x117),'author':'Lim3rd\x20Universal\x20Downloader','thumbnail':_0xdd60e3[_0x965917(0x191)]||'','videoFormats':_0x3d17a9,'audioFormats':_0x6e1cf3});}}if(_0x3756a1['includes'](_0x965917(0x17f))||_0x3756a1[_0x965917(0x182)](_0x965917(0x134))){const [_0x4b357c,_0x530f8e]=await Promise['all']([fetchYouTubeVideo(_0x3756a1)[_0x965917(0x15f)](()=>null),fetchYouTubeAudio(_0x3756a1)[_0x965917(0x15f)](()=>null)]),_0x2f4d69=_0x4b357c?_0x4b357c[_0x965917(0x13f)]:[],_0x3d6df6=_0x530f8e?_0x530f8e[_0x965917(0x13f)]:[];if(_0x2f4d69[_0x965917(0x183)]>0x0||_0x3d6df6[_0x965917(0x183)]>0x0)return _0x3795f1[_0x965917(0x18e)]({'status':_0x965917(0x12f),'title':_0x4b357c?.['title']||_0x530f8e?.[_0x965917(0x153)]||_0x965917(0x141),'author':_0x965917(0x184),'thumbnail':_0x4b357c?.[_0x965917(0x191)]||_0x530f8e?.['thumbnail']||'','videoFormats':_0x2f4d69,'audioFormats':_0x3d6df6});return _0x3795f1[_0x965917(0x16d)](0x1f4)[_0x965917(0x18e)]({'error':_0x965917(0x129)});}return _0x3795f1['status'](0x190)[_0x965917(0x18e)]({'error':_0x965917(0x181)});}catch(_0x4cf5e8){return console[_0x965917(0x159)]('API\x20error:',_0x4cf5e8),_0x3795f1['status'](0x1f4)['json']({'error':'Server\x20processing\x20error'});}});const PORT=process.env.PORT||0xbb8;app[_0x36b6fe(0x14f)](PORT,'0.0.0.0',()=>console[_0x36b6fe(0x16c)](_0x36b6fe(0x116)['concat'](PORT)));
+const express = require('express');
+const cors = require('cors');
+const { Readable } = require('stream');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || process.env.key;
+const AUDIO_API_HOST = 'yt-search-and-download-mp3.p.rapidapi.com';
+const VIDEO_API_HOST = 'cloud-api-hub-youtube-downloader.p.rapidapi.com';
+
+function sanitizeFilename(name) {
+    return (name || 'Lim3rd_Media')
+        .replace(/[<>:"/\\|?*\x00-\x1F]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 100) || 'Lim3rd_Media';
+}
+
+function formatTitleWithLim3rd(rawTitle) {
+    const base = sanitizeFilename(rawTitle)
+        .replace(/\s*-\s*Lim3rd$/i, '')
+        .trim() || 'Lim3rd_Media';
+    return `${base} - Lim3rd`;
+}
+
+function extractYouTubeId(rawUrl = '') {
+    try {
+        const cleaned = rawUrl.trim();
+        const nestedMatch = cleaned.match(/(?:youtu\.be\/|[?&]v=|\/(?:embed|shorts|v)\/)([a-zA-Z0-9_-]{11})(?:[?&/]|$)/g);
+        if (nestedMatch && nestedMatch.length > 0) {
+            const lastChunk = nestedMatch[nestedMatch.length - 1];
+            const idOnly = lastChunk.match(/([a-zA-Z0-9_-]{11})/);
+            if (idOnly && /^[a-zA-Z0-9_-]{11}$/.test(idOnly[1])) {
+                return idOnly[1];
+            }
+        }
+        if (/^[a-zA-Z0-9_-]{11}$/.test(cleaned)) {
+            return cleaned;
+        }
+    } catch (_) {}
+    return null;
+}
+
+function isPlayableDirectUrl(url = '') {
+    if (typeof url !== 'string' || !url.startsWith('http')) return false;
+
+    if (
+        url.includes('.m3u8') ||
+        url.includes('/manifest/hls_') ||
+        url.includes('/playlist/')
+    ) {
+        return false;
+    }
+
+    if (
+        url.includes('ytimg.com') ||
+        url.includes('googleusercontent.com') ||
+        /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url)
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+function extractMuxerVideoInfo(json, videoId, qualityLabel) {
+    if (!json || typeof json !== 'object') return null;
+
+    const candidateUrl =
+        json.url ||
+        json.download_url ||
+        json.downloadUrl ||
+        json.link ||
+        json.video ||
+        json.mp4 ||
+        json.result?.url ||
+        json.result?.download_url ||
+        json.data?.url ||
+        null;
+
+    if (typeof candidateUrl === 'string' && isPlayableDirectUrl(candidateUrl)) {
+        const rawFname = String(json.filename || json.result?.filename || '');
+        const isMuted = /_mute/i.test(rawFname);
+        return {
+            url: candidateUrl,
+            qualityLabel: `${qualityLabel}${isMuted ? ' (No Audio)' : ''}`,
+            title: extractTitle(json),
+            thumbnail: extractThumbnail(json, videoId)
+        };
+    }
+
+    return null;
+}
+
+function findAnyMediaUrl(obj) {
+    if (!obj) return null;
+    if (typeof obj === 'string') {
+        if (isPlayableDirectUrl(obj)) {
+            return obj;
+        }
+        return null;
+    }
+    if (Array.isArray(obj)) {
+        for (const item of obj) {
+            const found = findAnyMediaUrl(item);
+            if (found) return found;
+        }
+    } else if (typeof obj === 'object') {
+        const priorityKeys = ['download_url', 'downloadUrl', 'mp3', 'link', 'url', 'dlink', 'file', 'video', 'audio', 'mp4', 'href', 'src'];
+        for (const key of priorityKeys) {
+            if (obj[key]) {
+                const found = findAnyMediaUrl(obj[key]);
+                if (found) return found;
+            }
+        }
+        for (const key of Object.keys(obj)) {
+            if (key === 'manifest_url' || key.toLowerCase().includes('thumb') || key.toLowerCase().includes('image')) continue;
+            const found = findAnyMediaUrl(obj[key]);
+            if (found) return found;
+        }
+    }
+    return null;
+}
+
+function extractTitle(payload, fallback = 'Lim3rd Media File') {
+    return (
+        payload?.title ||
+        payload?.videoDetails?.title ||
+        payload?.result?.title ||
+        payload?.data?.title ||
+        payload?.info?.title ||
+        fallback
+    );
+}
+
+function extractThumbnail(payload, videoId = '') {
+    const thumb =
+        payload?.thumbnail ||
+        payload?.thumb ||
+        payload?.image ||
+        payload?.videoDetails?.thumbnail?.thumbnails?.slice(-1)?.[0]?.url ||
+        payload?.result?.thumbnail ||
+        payload?.result?.thumb ||
+        payload?.data?.thumbnail ||
+        '';
+    if (thumb) return thumb;
+    return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '';
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...options, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+async function resolveRedirectUrl(url) {
+    try {
+        const response = await fetchWithTimeout(url, {
+            method: 'GET',
+            redirect: 'follow',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+            }
+        }, 10000);
+        return response.url || url;
+    } catch (err) {
+        return url;
+    }
+}
+
+async function fetchMuxedVideo(videoId, quality = '360', label = '360p (Low)', timeoutMs = 10000) {
+    if (!/^[a-zA-Z0-9_-]{11}$/.test(videoId)) return null;
+
+    const endpoint =
+        `https://${VIDEO_API_HOST}/muxer?id=${encodeURIComponent(videoId)}` +
+        `&quality=${encodeURIComponent(quality)}` +
+        `&codec=h264` +
+        `&audioFormat=best` +
+        `&audioOnly=false` +
+        `&videoOnly=false`;
+
+    try {
+        const res = await fetchWithTimeout(endpoint, {
+            method: 'GET',
+            headers: {
+                'x-rapidapi-host': VIDEO_API_HOST,
+                'x-rapidapi-key': RAPIDAPI_KEY
+            }
+        }, timeoutMs);
+
+        const rawText = await res.text();
+        let json = {};
+        try {
+            json = JSON.parse(rawText);
+        } catch (_) {
+            return null;
+        }
+
+        if (json?.error) return null;
+
+        const info = extractMuxerVideoInfo(json, videoId, label);
+        if (res.ok && info?.url) {
+            return info;
+        }
+    } catch (_) {}
+
+    return null;
+}
+
+async function fetchYouTubeVideo(youtubeUrl) {
+    const videoId = extractYouTubeId(youtubeUrl);
+    if (!videoId) return null;
+
+    const lowVideo = await fetchMuxedVideo(videoId, '360', '360p (Low)', 10000).catch(() => null);
+
+    const formats = [];
+    if (lowVideo?.url) {
+        formats.push({ quality: lowVideo.qualityLabel, type: 'MP4', url: lowVideo.url });
+    }
+
+    if (formats.length > 0) {
+        return {
+            title: lowVideo?.title || 'Lim3rd Video File',
+            thumbnail: lowVideo?.thumbnail || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+            formats
+        };
+    }
+
+    return null;
+}
+
+async function fetchYouTubeAudio(youtubeUrl) {
+    const apiEndpoint = `https://${AUDIO_API_HOST}/mp3?url=${encodeURIComponent(youtubeUrl)}`;
+    try {
+        const apiResponse = await fetchWithTimeout(apiEndpoint, {
+            method: 'GET',
+            headers: {
+                'x-rapidapi-host': AUDIO_API_HOST,
+                'x-rapidapi-key': RAPIDAPI_KEY
+            }
+        }, 12000);
+
+        const rawText = await apiResponse.text();
+        let result = {};
+        try {
+            result = JSON.parse(rawText);
+        } catch (e) {
+            return null;
+        }
+
+        const audioUrl = findAnyMediaUrl(result);
+
+        if (apiResponse.ok && audioUrl) {
+            return {
+                title: extractTitle(result, 'Lim3rd Audio Track'),
+                thumbnail: extractThumbnail(result),
+                formats: [
+                    { quality: 'High Quality', type: 'MP3', url: audioUrl },
+                    { quality: 'Standard Quality', type: 'MP3', url: audioUrl }
+                ]
+            };
+        }
+    } catch (_) {}
+
+    return null;
+}
+
+app.get('/region', (req, res) => {
+    const cfCountry = req.headers['cf-ipcountry'];
+    const vercelCountry = req.headers['x-vercel-ip-country'];
+    const renderCountry = req.headers['x-country-code'];
+
+    const countryCode = (cfCountry || vercelCountry || renderCountry || 'PH')
+        .toString()
+        .trim()
+        .toUpperCase();
+
+    return res.json({ countryCode });
+});
+
+app.get('/proxy-download', async (req, res) => {
+    const fileUrl = req.query.url;
+    const rawTitle = req.query.title || 'Lim3rd_Media';
+    const ext = (req.query.ext || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
+
+    if (!fileUrl) {
+        return res.status(400).json({ error: 'Missing media URL' });
+    }
+
+    if (ext === 'mp4' && (fileUrl.includes('.m3u8') || fileUrl.includes('/manifest/hls_'))) {
+        return res.status(400).json({
+            error: 'HLS playlist (.m3u8) cannot be saved directly as a playable MP4 file.'
+        });
+    }
+
+    try {
+        const upstream = await fetchWithTimeout(fileUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Referer': 'https://www.youtube.com/'
+            }
+        }, 25000);
+
+        const contentType = upstream.headers.get('content-type') || '';
+        const isInvalidMediaType =
+            contentType.includes('text/html') ||
+            contentType.includes('application/json') ||
+            contentType.includes('text/plain') ||
+            contentType.includes('mpegurl');
+
+        if (!upstream.ok || !upstream.body || isInvalidMediaType) {
+            return res.status(502).json({
+                error: 'Media stream is unavailable or not a direct playable file.'
+            });
+        }
+
+        const safeTitle = formatTitleWithLim3rd(rawTitle);
+        const filename = `${safeTitle}.${ext}`;
+        const finalContentType = contentType || (ext === 'mp3' ? 'audio/mpeg' : 'video/mp4');
+        const contentLength = upstream.headers.get('content-length');
+
+        res.setHeader('Content-Type', finalContentType);
+        res.setHeader(
+            'Content-Disposition',
+            `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+        );
+        if (contentLength) {
+            res.setHeader('Content-Length', contentLength);
+        }
+
+        Readable.fromWeb(upstream.body).pipe(res);
+    } catch (err) {
+        console.error('Proxy download error:', err);
+        return res.status(500).json({ error: 'Failed to stream media file.' });
+    }
+});
+
+app.get('/download', async (req, res) => {
+    const rawURL = req.query.url;
+    if (!rawURL) {
+        return res.status(400).json({ error: 'Please input a YouTube link' });
+    }
+
+    try {
+        const isDirectYouTube =
+            rawURL.includes('youtube.com') ||
+            rawURL.includes('youtu.be');
+
+        const targetURL = isDirectYouTube ? rawURL : await resolveRedirectUrl(rawURL);
+
+        // Facebook Handler
+        if (targetURL.includes('facebook.com') || targetURL.includes('fb.watch') || targetURL.includes('fb.me')) {
+            const fbApiResponse = await fetchWithTimeout(
+                `https://apis.davidcyriltech.my.id/download/fbdl?url=${encodeURIComponent(targetURL)}`,
+                {},
+                12000
+            );
+            const fbResult = await fbApiResponse.json();
+
+            if (fbResult && fbResult.status === 200 && fbResult.result) {
+                const videoData = fbResult.result;
+                const videoFormats = [];
+                if (videoData.hd || videoData.url) {
+                    videoFormats.push({ quality: 'HD / 720p', type: 'MP4', url: videoData.hd || videoData.url });
+                }
+                if (videoData.sd) {
+                    videoFormats.push({ quality: 'SD / 360p', type: 'MP4', url: videoData.sd });
+                }
+
+                const audioFormats = videoData.audio
+                    ? [{ quality: 'Audio Stream', type: 'MP3', url: videoData.audio }]
+                    : [];
+
+                return res.json({
+                    status: 'success',
+                    title: videoData.title || 'Lim3rd Facebook Media',
+                    author: 'Lim3rd Universal Downloader',
+                    thumbnail: videoData.thumbnail || '',
+                    videoFormats,
+                    audioFormats
+                });
+            }
+        }
+
+        // YouTube Handler
+        if (targetURL.includes('youtube.com') || targetURL.includes('youtu.be')) {
+            const [videoData, audioData] = await Promise.all([
+                fetchYouTubeVideo(targetURL).catch(() => null),
+                fetchYouTubeAudio(targetURL).catch(() => null)
+            ]);
+
+            const videoFormats = videoData ? videoData.formats : [];
+            const audioFormats = audioData ? audioData.formats : [];
+
+            if (videoFormats.length > 0 || audioFormats.length > 0) {
+                return res.json({
+                    status: 'success',
+                    title: videoData?.title || audioData?.title || 'Lim3rd Media File',
+                    author: 'Lim3rd Universal Downloader',
+                    thumbnail: videoData?.thumbnail || audioData?.thumbnail || '',
+                    videoFormats,
+                    audioFormats
+                });
+            }
+
+            return res.status(500).json({ error: 'Unable to extract video or audio from this YouTube link.' });
+        }
+
+        return res.status(400).json({ error: 'Please input a YouTube link' });
+    } catch (err) {
+        console.error('API error:', err);
+        return res.status(500).json({ error: 'Server processing error' });
+    }
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
