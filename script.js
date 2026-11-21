@@ -1,3 +1,6 @@
+const LIM3RD_SERVER_BUSY_MSG =
+    "Lim3rd server\n\nWe are busy fixing the server, please wait patiently";
+
 const translations = {
     en: {
         subtitle: "Download videos and music instantly in high quality.",
@@ -11,8 +14,8 @@ const translations = {
         processing: "Fetching media details, please wait...",
         errorLink: "Please input a YouTube link",
         errorClipboard: "Clipboard access blocked. Please paste manually.",
-        errorProcess: "Please input a YouTube link",
-        errorConn: "Connection error. Please try again later."
+        errorProcess: LIM3RD_SERVER_BUSY_MSG,
+        errorConn: LIM3RD_SERVER_BUSY_MSG
     },
     tl: {
         subtitle: "Mag-download ng mga video at musika nang mabilis at mataas ang kalidad.",
@@ -26,8 +29,8 @@ const translations = {
         processing: "Kinukuha ang detalye, mangyaring maghintay...",
         errorLink: "Please input a YouTube link",
         errorClipboard: "Hindi ma-access ang clipboard. I-paste nang mano-mano.",
-        errorProcess: "Please input a YouTube link",
-        errorConn: "May problema sa koneksyon. Subukan ulit mamaya."
+        errorProcess: LIM3RD_SERVER_BUSY_MSG,
+        errorConn: LIM3RD_SERVER_BUSY_MSG
     },
     zh: {
         subtitle: "立即以高清格式下载视频和音乐。",
@@ -41,8 +44,8 @@ const translations = {
         processing: "正在获取媒体详情，请稍候...",
         errorLink: "Please input a YouTube link",
         errorClipboard: "剪贴板访问被阻止，请手动粘贴。",
-        errorProcess: "Please input a YouTube link",
-        errorConn: "连接错误，请稍后重试。"
+        errorProcess: LIM3RD_SERVER_BUSY_MSG,
+        errorConn: LIM3RD_SERVER_BUSY_MSG
     }
 };
 
@@ -397,7 +400,7 @@ async function fetchMedia() {
                 switchTab('audio');
             }
         } else {
-            alert(data.error || t.errorProcess);
+            alert(t.errorProcess);
             if (resultBox) resultBox.style.display = 'none';
         }
     } catch (err) {
@@ -430,18 +433,13 @@ if (downloadNowBtnEl) {
         try {
             const res = await fetch(proxiedUrl);
             if (!res.ok) {
-                let errMsg = 'Unable to download playable file.';
-                try {
-                    const errJson = await res.json();
-                    if (errJson?.error) errMsg = errJson.error;
-                } catch (_) {}
-                alert(errMsg);
+                alert(LIM3RD_SERVER_BUSY_MSG);
                 return;
             }
 
             const blob = await res.blob();
             if (!blob || blob.size < 1024) {
-                alert('Downloaded file is empty or incomplete.');
+                alert(LIM3RD_SERVER_BUSY_MSG);
                 return;
             }
 
@@ -454,7 +452,7 @@ if (downloadNowBtnEl) {
             a.remove();
             setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
         } catch (err) {
-            alert('Download failed. Please try again.');
+            alert(LIM3RD_SERVER_BUSY_MSG);
         } finally {
             downloadBtn.disabled = false;
             downloadBtn.innerHTML = originalText;
