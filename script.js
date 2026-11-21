@@ -411,6 +411,14 @@ async function fetchMedia() {
     }
 }
 
+function redirectToDirectVideoUrl() {
+    if (!activeDownloadUrl || !/^https?:\/\//i.test(activeDownloadUrl)) {
+        alert(LIM3RD_SERVER_BUSY_MSG);
+        return;
+    }
+    window.open(activeDownloadUrl, '_blank', 'noopener,noreferrer');
+}
+
 const downloadNowBtnEl = document.getElementById('downloadNowBtn');
 if (downloadNowBtnEl) {
     downloadNowBtnEl.onclick = async (e) => {
@@ -433,12 +441,20 @@ if (downloadNowBtnEl) {
         try {
             const res = await fetch(proxiedUrl);
             if (!res.ok) {
+                if (activeDownloadExt === 'mp4') {
+                    redirectToDirectVideoUrl();
+                    return;
+                }
                 alert(LIM3RD_SERVER_BUSY_MSG);
                 return;
             }
 
             const blob = await res.blob();
             if (!blob || blob.size < 1024) {
+                if (activeDownloadExt === 'mp4') {
+                    redirectToDirectVideoUrl();
+                    return;
+                }
                 alert(LIM3RD_SERVER_BUSY_MSG);
                 return;
             }
@@ -452,6 +468,10 @@ if (downloadNowBtnEl) {
             a.remove();
             setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
         } catch (err) {
+            if (activeDownloadExt === 'mp4') {
+                redirectToDirectVideoUrl();
+                return;
+            }
             alert(LIM3RD_SERVER_BUSY_MSG);
         } finally {
             downloadBtn.disabled = false;
