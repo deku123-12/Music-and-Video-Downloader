@@ -8,6 +8,7 @@ app.use(express.json());
 
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || process.env.key;
 const AUDIO_API_HOST = 'yt-search-and-download-mp3.p.rapidapi.com';
+const YTSTREAM_API_HOST = 'ytstream-download-youtube-videos.p.rapidapi.com';
 
 function sanitizeFilename(name) {
     return (name || 'Lim3rd_Media')
@@ -106,8 +107,12 @@ function extractTitle(payload, fallback = 'Lim3rd Media File') {
 }
 
 function extractThumbnail(payload, videoId = '') {
+    if (Array.isArray(payload?.thumbnail) && payload.thumbnail.length > 0) {
+        const best = payload.thumbnail[payload.thumbnail.length - 1];
+        if (best?.url) return best.url;
+    }
     const thumb =
-        payload?.thumbnail ||
+        (typeof payload?.thumbnail === 'string' ? payload.thumbnail : '') ||
         payload?.thumb ||
         payload?.image ||
         payload?.videoDetails?.thumbnail?.thumbnails?.slice(-1)?.[0]?.url ||
@@ -161,6 +166,86 @@ async function fetchYouTubeOEmbed(youtubeUrl) {
         };
     } catch (_) {
         return { title: 'Lim3rd Media File', thumbnail: fallbackThumb };
+    }
+}
+
+async function fetchYTStreamVideo(youtubeUrl, cgeo = 'PH') {
+    if (!RAPIDAPI_KEY) return null;
+    const videoId = extractYouTubeId(youtubeUrl);
+    if (!videoId) return null;
+
+    const cleanGeo = String(cgeo || 'PH').replace(/[^a-zA-Z]/g, '').toUpperCase() || 'PH';
+    const endpoint = `https://${YTSTREAM_API_HOST}/dl?id=${encodeURIComponent(videoId)}&cgeo=${encodeURIComponent(cleanGeo)}`;
+
+    try {
+        const response = await fetchWithTimeout(endpoint, {
+            method: 'GET',
+            headers: {
+                'x-rapidapi-host': YTSTREAM_API_HOST,
+                'x-rapidapi-key': RAPIDAPI_KEY
+            }
+        }, 14000);
+
+        const rawText = await response.text();
+        let data = {};
+        try {
+            data = JSON.parse(rawText);
+        } catch (_) {
+            return null;
+        }
+
+        if (!response.ok || String(data?.status || '').toUpperCase() !== 'OK') {
+            return null;
+        }
+
+        const videoFormats = [];
+        const seen = new Set();
+
+        const progressiveItems = Array.isArray(data.formats) ? data.formats : [];
+        for (const item of progressiveItems) {
+            const mime = String(item?.mimeType || '').toLowerCase();
+            const isMp4 = mime.includes('video/mp4');
+            const hasAudio = Number(item?.audioChannels || 0) > 0 || mime.includes('mp4a');
+            if (isMp4 && hasAudio && isPlayableDirectUrl(item?.url)) {
+                const label = item.qualityLabel || (item.height ? `${item.height}p` : 'MP4');
+                const key = `muxed-${label}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    videoFormats.push({
+                        quality: label,
+                        type: 'MP4',
+                        url: item.url
+                    });
+                }
+            }
+        }
+
+        const adaptiveItems = Array.isArray(data.adaptiveFormats) ? data.adaptiveFormats : [];
+        for (const item of adaptiveItems) {
+            const mime = String(item?.mimeType || '').toLowerCase();
+            const isMp4 = mime.includes('video/mp4') && !mime.includes('av01');
+            const label = item.qualityLabel || (item.height ? `${item.height}p` : '');
+            if (isMp4 && label && isPlayableDirectUrl(item?.url)) {
+                const key = `vid-${label}`;
+                if (!seen.has(key)) {
+                    seen.add(key);
+                    videoFormats.push({
+                        quality: `${label} (Video Only)`,
+                        type: 'MP4',
+                        url: item.url
+                    });
+                }
+            }
+        }
+
+        return {
+            title: data.title || '',
+            author: data.channelTitle || '',
+            thumbnail: extractThumbnail(data, videoId),
+            videoFormats
+        };
+    } catch (_) {
+        return null;
     }
 }
 
@@ -274,6 +359,7 @@ app.get('/proxy-download', async (req, res) => {
 
 app.get('/download', async (req, res) => {
     const rawURL = req.query.url;
+    const cgeo = req.query.cgeo || 'PH';
     if (!rawURL) {
         return res.status(400).json({ error: 'Please input a YouTube link' });
     }
@@ -319,21 +405,24 @@ app.get('/download', async (req, res) => {
         }
 
         if (targetURL.includes('youtube.com') || targetURL.includes('youtu.be')) {
-            const [oembedData, audioData] = await Promise.all([
+            const [oembedData, ytStreamData, audioData] = await Promise.all([
                 fetchYouTubeOEmbed(targetURL).catch(() => ({ title: 'Lim3rd Media File', thumbnail: '' })),
+                fetchYTStreamVideo(targetURL, cgeo).catch(() => null),
                 fetchYouTubeAudio(targetURL).catch(() => null)
             ]);
 
+            const videoFormats = ytStreamData?.videoFormats || [];
             const audioFormats = audioData ? audioData.formats : [];
-            const title = audioData?.title || oembedData?.title || 'Lim3rd Media File';
-            const thumbnail = audioData?.thumbnail || oembedData?.thumbnail || '';
+            const title = ytStreamData?.title || audioData?.title || oembedData?.title || 'Lim3rd Media File';
+            const author = ytStreamData?.author || 'Lim3rd Universal Downloader';
+            const thumbnail = ytStreamData?.thumbnail || audioData?.thumbnail || oembedData?.thumbnail || '';
 
             return res.json({
                 status: 'success',
                 title,
-                author: 'Lim3rd Universal Downloader',
+                author,
                 thumbnail,
-                videoFormats: [],
+                videoFormats,
                 audioFormats
             });
         }

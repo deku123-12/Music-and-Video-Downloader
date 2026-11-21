@@ -334,7 +334,8 @@ async function fetchMedia() {
     if (audioGrid) audioGrid.innerHTML = '';
 
     try {
-        const backendUrl = `${BACKEND_BASE_URL}/download?url=${encodeURIComponent(cleanUrl)}`;
+        const geoParam = encodeURIComponent(currentRegionCode || 'PH');
+        const backendUrl = `${BACKEND_BASE_URL}/download?url=${encodeURIComponent(cleanUrl)}&cgeo=${geoParam}`;
         let response;
 
         try {
