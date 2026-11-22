@@ -17,23 +17,16 @@ let cookiesFilePath = null;
 if (process.env.YTDLP_COOKIES_B64) {
     try {
         const cleanB64 = String(process.env.YTDLP_COOKIES_B64).replace(/\s+/g, '');
-        const decodedBuffer = Buffer.from(cleanB64, 'base64');
         const tmpCookies = path.join(os.tmpdir(), 'ytdlp_cookies.txt');
-        fs.writeFileSync(tmpCookies, decodedBuffer);
+        fs.writeFileSync(tmpCookies, Buffer.from(cleanB64, 'base64'));
         cookiesFilePath = tmpCookies;
-        console.error(`[LIM3RD] Loaded yt-dlp cookies (${decodedBuffer.length} bytes) from YTDLP_COOKIES_B64.`);
     } catch (e) {
-        console.error('[LIM3RD] Failed to write yt-dlp cookies file:', e);
+        console.error('Failed to write yt-dlp cookies file:', e);
     }
 }
 
-function getYtDlpBaseArgs(extraArgs = [], clientProfile = 'web,mweb') {
-    const args = [
-        '--no-playlist',
-        '--no-warnings',
-        '--extractor-args',
-        `youtube:player_client=${clientProfile}`
-    ];
+function getYtDlpBaseArgs(extraArgs = []) {
+    const args = ['--no-playlist', '--no-warnings'];
     if (cookiesFilePath) {
         args.push('--cookies', cookiesFilePath);
     }
@@ -199,20 +192,11 @@ async function fetchYouTubeOEmbed(youtubeUrl) {
     }
 }
 
-function runYtDlpJson(youtubeUrl, clientProfile) {
+function fetchYtDlpInfo(youtubeUrl) {
     return new Promise((resolve) => {
-        const args = getYtDlpBaseArgs(['--dump-single-json', youtubeUrl], clientProfile);
-        console.error(`[LIM3RD] Fetching yt-dlp metadata (${clientProfile}) for: ${youtubeUrl}`);
-
-        execFile('yt-dlp', args, { timeout: 35000, maxBuffer: 1024 * 1024 * 25 }, (err, stdout, stderr) => {
-            if (err || !stdout) {
-                console.error(`[LIM3RD] yt-dlp info failed (${clientProfile}): ${err?.message || err}`);
-                if (stderr) {
-                    console.error(`[LIM3RD] yt-dlp stderr: ${String(stderr).slice(-500)}`);
-                }
-                return resolve(null);
-            }
-
+        const args = getYtDlpBaseArgs(['--dump-single-json', youtubeUrl]);
+        execFile('yt-dlp', args, { timeout: 25000, maxBuffer: 1024 * 1024 * 20 }, (err, stdout) => {
+            if (err || !stdout) return resolve(null);
             try {
                 const info = JSON.parse(stdout);
                 const formats = Array.isArray(info.formats) ? info.formats : [];
@@ -255,23 +239,13 @@ function runYtDlpJson(youtubeUrl, clientProfile) {
                     }
                 }
 
-                if (videoFormats.length === 0 && formats.length > 0) {
-                    videoFormats.push({
-                        quality: 'Best MP4',
-                        type: 'MP4',
-                        url: `ytdlp://bv*+ba/b|${youtubeUrl}`
-                    });
-                }
-
                 const hasAnyAudioStream = formats.some((f) => f.acodec && f.acodec !== 'none' && f.format_id);
                 const fallbackAudioFormats = hasAnyAudioStream
                     ? [
-                        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${youtubeUrl}` },
-                        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${youtubeUrl}` }
+                        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` },
+                        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` }
                     ]
                     : [];
-
-                console.error(`[LIM3RD] yt-dlp info success (${clientProfile}): ${info.title || 'Unknown'} (${videoFormats.length} video formats)`);
 
                 resolve({
                     title: info.title || '',
@@ -280,18 +254,11 @@ function runYtDlpJson(youtubeUrl, clientProfile) {
                     videoFormats,
                     fallbackAudioFormats
                 });
-            } catch (parseErr) {
-                console.error(`[LIM3RD] yt-dlp JSON parse failed: ${parseErr?.message || parseErr}`);
+            } catch (_) {
                 resolve(null);
             }
         });
     });
-}
-
-async function fetchYtDlpInfo(youtubeUrl) {
-    const firstTry = await runYtDlpJson(youtubeUrl, 'web,mweb');
-    if (firstTry) return firstTry;
-    return await runYtDlpJson(youtubeUrl, 'android,web');
 }
 
 async function fetchYouTubeAudio(youtubeUrl) {
@@ -346,15 +313,15 @@ function cleanupTempPrefix(tmpBase) {
     } catch (_) {}
 }
 
-function runYtDlpMp4Build(ytUrl, formatSelector, tmpOutput, clientProfile) {
+function runYtDlpMp4(ytUrl, selector, tmpOutput) {
     return new Promise((resolve) => {
         const args = getYtDlpBaseArgs([
-            '-f', formatSelector,
+            '-f', selector,
             '--merge-output-format', 'mp4',
             '--remux-video', 'mp4',
             '-o', tmpOutput,
             ytUrl
-        ], clientProfile);
+        ]);
 
         const proc = spawn('yt-dlp', args);
         let stderrText = '';
@@ -400,7 +367,7 @@ app.get('/proxy-download', async (req, res) => {
     if (fileUrl.startsWith('ytdlp://')) {
         const rawPayload = fileUrl.slice('ytdlp://'.length);
         const pipeIdx = rawPayload.indexOf('|');
-        const formatId = pipeIdx !== -1 ? rawPayload.slice(0, pipeIdx) : 'bv*+ba/b';
+        const formatId = pipeIdx !== -1 ? rawPayload.slice(0, pipeIdx) : 'best[ext=mp4]';
         const ytUrl = pipeIdx !== -1 ? rawPayload.slice(pipeIdx + 1) : '';
 
         if (!ytUrl) {
@@ -412,28 +379,18 @@ app.get('/proxy-download', async (req, res) => {
         const tmpBase = path.join(os.tmpdir(), `lim3rd_vid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
         const tmpOutput = `${tmpBase}.mp4`;
 
-        const strictSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/bv*+ba/b`;
-        const looseSelector = 'bv*+ba/b';
-
-        let result = await runYtDlpMp4Build(ytUrl, strictSelector, tmpOutput, 'web,mweb');
+        const formatSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/best[ext=mp4]/bv*+ba/b`;
+        let result = await runYtDlpMp4(ytUrl, formatSelector, tmpOutput);
         if (!result.ok) {
             cleanupTempPrefix(tmpBase);
-            result = await runYtDlpMp4Build(ytUrl, looseSelector, tmpOutput, 'android,web');
+            result = await runYtDlpMp4(ytUrl, 'bv*+ba/b', tmpOutput);
         }
 
         if (!result.ok || !fs.existsSync(tmpOutput)) {
-            console.error('[LIM3RD] yt-dlp MP4 build failed:', result.code, result.stderrText.slice(-500));
+            console.error('yt-dlp MP4 build failed:', result.code, result.stderrText.slice(-400));
             cleanupTempPrefix(tmpBase);
             if (!res.headersSent) {
-                const isBotCheck = /not a bot|sign in to confirm/i.test(result.stderrText);
-                const isFormatUnavailable = /requested format is not available/i.test(result.stderrText);
-                res.status(502).json({
-                    error: isBotCheck
-                        ? 'YouTube bot check blocked MP4 build. Refresh YTDLP_COOKIES_B64 or try MP3 audio.'
-                        : isFormatUnavailable
-                            ? 'Requested video format is unavailable for this video. Try MP3 audio or another video link.'
-                            : 'yt-dlp failed to build playable MP4.'
-                });
+                res.status(502).json({ error: 'yt-dlp failed to build playable MP4.' });
             }
             return;
         }
@@ -467,7 +424,7 @@ app.get('/proxy-download', async (req, res) => {
     if (fileUrl.startsWith('ytdlp-audio://')) {
         const rawPayload = fileUrl.slice('ytdlp-audio://'.length);
         const pipeIdx = rawPayload.indexOf('|');
-        const audioSelector = pipeIdx !== -1 ? rawPayload.slice(0, pipeIdx) : 'bestaudio/best';
+        const audioSelector = pipeIdx !== -1 ? rawPayload.slice(0, pipeIdx) : 'bestaudio';
         const ytUrl = pipeIdx !== -1 ? rawPayload.slice(pipeIdx + 1) : '';
 
         if (!ytUrl) {
@@ -486,14 +443,9 @@ app.get('/proxy-download', async (req, res) => {
             '--audio-quality', '0',
             '-o', `${tmpBase}.%(ext)s`,
             ytUrl
-        ], 'web,mweb');
+        ]);
 
         const proc = spawn('yt-dlp', args);
-        let stderrText = '';
-
-        proc.stderr.on('data', (chunk) => {
-            stderrText += chunk.toString();
-        });
 
         proc.on('error', () => {
             cleanupTempPrefix(tmpBase);
@@ -502,7 +454,6 @@ app.get('/proxy-download', async (req, res) => {
 
         proc.on('close', (code) => {
             if (code !== 0 || !fs.existsSync(tmpOutput)) {
-                console.error('[LIM3RD] yt-dlp MP3 build failed:', code, stderrText.slice(-500));
                 cleanupTempPrefix(tmpBase);
                 if (!res.headersSent) res.status(502).json({ error: 'Failed to build MP3 audio.' });
                 return;
@@ -580,7 +531,7 @@ app.get('/proxy-download', async (req, res) => {
 
         Readable.fromWeb(upstream.body).pipe(res);
     } catch (err) {
-        console.error('[LIM3RD] Proxy download error:', err);
+        console.error('Proxy download error:', err);
         return res.status(500).json({ error: 'Failed to stream media file.' });
     }
 });
@@ -605,21 +556,11 @@ app.get('/download', async (req, res) => {
                 fetchYouTubeAudio(targetURL).catch(() => null)
             ]);
 
-            let videoFormats = ytDlpData?.videoFormats || [];
-            if (videoFormats.length === 0) {
-                videoFormats = [
-                    { quality: 'Best MP4', type: 'MP4', url: `ytdlp://bv*+ba/b|${targetURL}` },
-                    { quality: '360p', type: 'MP4', url: `ytdlp://best[height<=360]/bv*+ba/b|${targetURL}` }
-                ];
-            }
-
+            const videoFormats = ytDlpData?.videoFormats || [];
             const audioFormats =
                 audioData && Array.isArray(audioData.formats) && audioData.formats.length > 0
                     ? audioData.formats
-                    : (ytDlpData?.fallbackAudioFormats || [
-                        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${targetURL}` },
-                        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${targetURL}` }
-                    ]);
+                    : (ytDlpData?.fallbackAudioFormats || []);
 
             const title = ytDlpData?.title || audioData?.title || oembedData?.title || 'Lim3rd Media File';
             const author = ytDlpData?.author || 'Lim3rd Universal Downloader';
@@ -637,10 +578,10 @@ app.get('/download', async (req, res) => {
 
         return res.status(400).json({ error: 'Please input a YouTube link' });
     } catch (err) {
-        console.error('[LIM3RD] API error:', err);
+        console.error('API error:', err);
         return res.status(500).json({ error: 'Server processing error' });
     }
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, '0.0.0.0', () => console.log(`[LIM3RD] Server running on port ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => console.log(`Server running on port ${PORT}`));
