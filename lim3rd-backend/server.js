@@ -27,12 +27,12 @@ if (process.env.YTDLP_COOKIES_B64) {
     }
 }
 
-function getYtDlpBaseArgs(extraArgs = []) {
+function getYtDlpBaseArgs(extraArgs = [], clientProfile = 'web,mweb') {
     const args = [
         '--no-playlist',
         '--no-warnings',
         '--extractor-args',
-        'youtube:player_client=android,web'
+        `youtube:player_client=${clientProfile}`
     ];
     if (cookiesFilePath) {
         args.push('--cookies', cookiesFilePath);
@@ -199,16 +199,16 @@ async function fetchYouTubeOEmbed(youtubeUrl) {
     }
 }
 
-function fetchYtDlpInfo(youtubeUrl) {
+function runYtDlpJson(youtubeUrl, clientProfile) {
     return new Promise((resolve) => {
-        const args = getYtDlpBaseArgs(['--dump-single-json', youtubeUrl]);
-        console.error(`[LIM3RD] Fetching yt-dlp metadata for: ${youtubeUrl}`);
+        const args = getYtDlpBaseArgs(['--dump-single-json', youtubeUrl], clientProfile);
+        console.error(`[LIM3RD] Fetching yt-dlp metadata (${clientProfile}) for: ${youtubeUrl}`);
 
         execFile('yt-dlp', args, { timeout: 35000, maxBuffer: 1024 * 1024 * 25 }, (err, stdout, stderr) => {
             if (err || !stdout) {
-                console.error(`[LIM3RD] yt-dlp info failed: ${err?.message || err}`);
+                console.error(`[LIM3RD] yt-dlp info failed (${clientProfile}): ${err?.message || err}`);
                 if (stderr) {
-                    console.error(`[LIM3RD] yt-dlp stderr: ${String(stderr).slice(-600)}`);
+                    console.error(`[LIM3RD] yt-dlp stderr: ${String(stderr).slice(-500)}`);
                 }
                 return resolve(null);
             }
@@ -259,19 +259,19 @@ function fetchYtDlpInfo(youtubeUrl) {
                     videoFormats.push({
                         quality: 'Best MP4',
                         type: 'MP4',
-                        url: `ytdlp://bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best|${youtubeUrl}`
+                        url: `ytdlp://bv*+ba/b|${youtubeUrl}`
                     });
                 }
 
                 const hasAnyAudioStream = formats.some((f) => f.acodec && f.acodec !== 'none' && f.format_id);
                 const fallbackAudioFormats = hasAnyAudioStream
                     ? [
-                        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` },
-                        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` }
+                        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${youtubeUrl}` },
+                        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${youtubeUrl}` }
                     ]
                     : [];
 
-                console.error(`[LIM3RD] yt-dlp info success: ${info.title || 'Unknown'} (${videoFormats.length} video formats)`);
+                console.error(`[LIM3RD] yt-dlp info success (${clientProfile}): ${info.title || 'Unknown'} (${videoFormats.length} video formats)`);
 
                 resolve({
                     title: info.title || '',
@@ -286,6 +286,12 @@ function fetchYtDlpInfo(youtubeUrl) {
             }
         });
     });
+}
+
+async function fetchYtDlpInfo(youtubeUrl) {
+    const firstTry = await runYtDlpJson(youtubeUrl, 'web,mweb');
+    if (firstTry) return firstTry;
+    return await runYtDlpJson(youtubeUrl, 'android,web');
 }
 
 async function fetchYouTubeAudio(youtubeUrl) {
@@ -340,6 +346,35 @@ function cleanupTempPrefix(tmpBase) {
     } catch (_) {}
 }
 
+function runYtDlpMp4Build(ytUrl, formatSelector, tmpOutput, clientProfile) {
+    return new Promise((resolve) => {
+        const args = getYtDlpBaseArgs([
+            '-f', formatSelector,
+            '--merge-output-format', 'mp4',
+            '--remux-video', 'mp4',
+            '-o', tmpOutput,
+            ytUrl
+        ], clientProfile);
+
+        const proc = spawn('yt-dlp', args);
+        let stderrText = '';
+
+        proc.stderr.on('data', (chunk) => {
+            stderrText += chunk.toString();
+        });
+
+        proc.on('error', (err) => {
+            resolve({ ok: false, code: -1, stderrText: String(err?.message || err), proc });
+        });
+
+        proc.on('close', (code) => {
+            const exists = fs.existsSync(tmpOutput);
+            const size = exists ? fs.statSync(tmpOutput).size : 0;
+            resolve({ ok: code === 0 && exists && size >= 1024, code, stderrText, proc });
+        });
+    });
+}
+
 app.get('/region', (req, res) => {
     const cfCountry = req.headers['cf-ipcountry'];
     const vercelCountry = req.headers['x-vercel-ip-country'];
@@ -365,7 +400,7 @@ app.get('/proxy-download', async (req, res) => {
     if (fileUrl.startsWith('ytdlp://')) {
         const rawPayload = fileUrl.slice('ytdlp://'.length);
         const pipeIdx = rawPayload.indexOf('|');
-        const formatId = pipeIdx !== -1 ? rawPayload.slice(0, pipeIdx) : 'best[ext=mp4]';
+        const formatId = pipeIdx !== -1 ? rawPayload.slice(0, pipeIdx) : 'bv*+ba/b';
         const ytUrl = pipeIdx !== -1 ? rawPayload.slice(pipeIdx + 1) : '';
 
         if (!ytUrl) {
@@ -377,86 +412,54 @@ app.get('/proxy-download', async (req, res) => {
         const tmpBase = path.join(os.tmpdir(), `lim3rd_vid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
         const tmpOutput = `${tmpBase}.mp4`;
 
-        const formatSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
-        const args = getYtDlpBaseArgs([
-            '-f', formatSelector,
-            '--merge-output-format', 'mp4',
-            '--remux-video', 'mp4',
-            '-o', tmpOutput,
-            ytUrl
-        ]);
+        const strictSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/bv*+ba/b`;
+        const looseSelector = 'bv*+ba/b';
 
-        const proc = spawn('yt-dlp', args);
-        let stderrText = '';
+        let result = await runYtDlpMp4Build(ytUrl, strictSelector, tmpOutput, 'web,mweb');
+        if (!result.ok) {
+            cleanupTempPrefix(tmpBase);
+            result = await runYtDlpMp4Build(ytUrl, looseSelector, tmpOutput, 'android,web');
+        }
 
-        proc.stderr.on('data', (chunk) => {
-            stderrText += chunk.toString();
-        });
-
-        proc.on('error', (err) => {
-            console.error('[LIM3RD] yt-dlp spawn error:', err);
+        if (!result.ok || !fs.existsSync(tmpOutput)) {
+            console.error('[LIM3RD] yt-dlp MP4 build failed:', result.code, result.stderrText.slice(-500));
             cleanupTempPrefix(tmpBase);
             if (!res.headersSent) {
-                res.status(500).json({ error: 'Failed to start yt-dlp MP4 download.' });
-            }
-        });
-
-        proc.on('close', (code) => {
-            if (code !== 0 || !fs.existsSync(tmpOutput)) {
-                console.error('[LIM3RD] yt-dlp MP4 build failed:', code, stderrText.slice(-500));
-                cleanupTempPrefix(tmpBase);
-                if (!res.headersSent) {
-                    const isBotCheck = /not a bot|sign in to confirm/i.test(stderrText);
-                    const isFormatUnavailable = /requested format is not available/i.test(stderrText);
-                    res.status(502).json({
-                        error: isBotCheck
-                            ? 'YouTube bot check blocked MP4 build. Refresh YTDLP_COOKIES_B64 or try MP3 audio.'
-                            : isFormatUnavailable
-                                ? 'Requested video format is unavailable for this video. Try another quality or MP3 audio.'
-                                : 'yt-dlp failed to build playable MP4.'
-                    });
-                }
-                return;
-            }
-
-            try {
-                const stat = fs.statSync(tmpOutput);
-                if (!stat.size || stat.size < 1024) {
-                    cleanupTempPrefix(tmpBase);
-                    if (!res.headersSent) {
-                        res.status(502).json({ error: 'Generated MP4 file is empty or incomplete.' });
-                    }
-                    return;
-                }
-
-                res.setHeader('Content-Type', 'video/mp4');
-                res.setHeader('Content-Length', stat.size);
-                res.setHeader(
-                    'Content-Disposition',
-                    `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
-                );
-
-                const stream = fs.createReadStream(tmpOutput);
-                stream.pipe(res);
-                stream.on('close', () => cleanupTempPrefix(tmpBase));
-                stream.on('error', () => {
-                    cleanupTempPrefix(tmpBase);
-                    if (!res.headersSent) res.status(500).end();
+                const isBotCheck = /not a bot|sign in to confirm/i.test(result.stderrText);
+                const isFormatUnavailable = /requested format is not available/i.test(result.stderrText);
+                res.status(502).json({
+                    error: isBotCheck
+                        ? 'YouTube bot check blocked MP4 build. Refresh YTDLP_COOKIES_B64 or try MP3 audio.'
+                        : isFormatUnavailable
+                            ? 'Requested video format is unavailable for this video. Try MP3 audio or another video link.'
+                            : 'yt-dlp failed to build playable MP4.'
                 });
-            } catch (e) {
-                cleanupTempPrefix(tmpBase);
-                if (!res.headersSent) {
-                    res.status(500).json({ error: 'Failed to read generated MP4.' });
-                }
             }
-        });
+            return;
+        }
 
-        req.on('close', () => {
-            if (!proc.killed) {
-                proc.kill('SIGKILL');
-            }
+        try {
+            const stat = fs.statSync(tmpOutput);
+            res.setHeader('Content-Type', 'video/mp4');
+            res.setHeader('Content-Length', stat.size);
+            res.setHeader(
+                'Content-Disposition',
+                `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+            );
+
+            const stream = fs.createReadStream(tmpOutput);
+            stream.pipe(res);
+            stream.on('close', () => cleanupTempPrefix(tmpBase));
+            stream.on('error', () => {
+                cleanupTempPrefix(tmpBase);
+                if (!res.headersSent) res.status(500).end();
+            });
+        } catch (e) {
             cleanupTempPrefix(tmpBase);
-        });
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Failed to read generated MP4.' });
+            }
+        }
 
         return;
     }
@@ -464,7 +467,7 @@ app.get('/proxy-download', async (req, res) => {
     if (fileUrl.startsWith('ytdlp-audio://')) {
         const rawPayload = fileUrl.slice('ytdlp-audio://'.length);
         const pipeIdx = rawPayload.indexOf('|');
-        const audioSelector = pipeIdx !== -1 ? rawPayload.slice(0, pipeIdx) : 'bestaudio';
+        const audioSelector = pipeIdx !== -1 ? rawPayload.slice(0, pipeIdx) : 'bestaudio/best';
         const ytUrl = pipeIdx !== -1 ? rawPayload.slice(pipeIdx + 1) : '';
 
         if (!ytUrl) {
@@ -483,7 +486,7 @@ app.get('/proxy-download', async (req, res) => {
             '--audio-quality', '0',
             '-o', `${tmpBase}.%(ext)s`,
             ytUrl
-        ]);
+        ], 'web,mweb');
 
         const proc = spawn('yt-dlp', args);
         let stderrText = '';
@@ -605,8 +608,8 @@ app.get('/download', async (req, res) => {
             let videoFormats = ytDlpData?.videoFormats || [];
             if (videoFormats.length === 0) {
                 videoFormats = [
-                    { quality: '720p', type: 'MP4', url: `ytdlp://bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best[ext=mp4]|${targetURL}` },
-                    { quality: '360p', type: 'MP4', url: `ytdlp://bestvideo[height<=360][ext=mp4]+bestaudio[ext=m4a]/best[height<=360][ext=mp4]/best[ext=mp4]|${targetURL}` }
+                    { quality: 'Best MP4', type: 'MP4', url: `ytdlp://bv*+ba/b|${targetURL}` },
+                    { quality: '360p', type: 'MP4', url: `ytdlp://best[height<=360]/bv*+ba/b|${targetURL}` }
                 ];
             }
 
@@ -614,8 +617,8 @@ app.get('/download', async (req, res) => {
                 audioData && Array.isArray(audioData.formats) && audioData.formats.length > 0
                     ? audioData.formats
                     : (ytDlpData?.fallbackAudioFormats || [
-                        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${targetURL}` },
-                        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${targetURL}` }
+                        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${targetURL}` },
+                        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${targetURL}` }
                     ]);
 
             const title = ytDlpData?.title || audioData?.title || oembedData?.title || 'Lim3rd Media File';
