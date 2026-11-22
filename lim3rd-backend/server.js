@@ -16,10 +16,12 @@ const AUDIO_API_HOST = 'yt-search-and-download-mp3.p.rapidapi.com';
 let cookiesFilePath = null;
 if (process.env.YTDLP_COOKIES_B64) {
     try {
+        const cleanB64 = String(process.env.YTDLP_COOKIES_B64).replace(/\s+/g, '');
+        const decodedBuffer = Buffer.from(cleanB64, 'base64');
         const tmpCookies = path.join(os.tmpdir(), 'ytdlp_cookies.txt');
-        fs.writeFileSync(tmpCookies, Buffer.from(process.env.YTDLP_COOKIES_B64, 'base64'));
+        fs.writeFileSync(tmpCookies, decodedBuffer);
         cookiesFilePath = tmpCookies;
-        console.error('[LIM3RD] Loaded yt-dlp cookies from YTDLP_COOKIES_B64.');
+        console.error(`[LIM3RD] Loaded yt-dlp cookies (${decodedBuffer.length} bytes) from YTDLP_COOKIES_B64.`);
     } catch (e) {
         console.error('[LIM3RD] Failed to write yt-dlp cookies file:', e);
     }
@@ -404,7 +406,12 @@ app.get('/proxy-download', async (req, res) => {
                 console.error('[LIM3RD] yt-dlp MP4 build failed:', code, stderrText.slice(-500));
                 cleanupTempPrefix(tmpBase);
                 if (!res.headersSent) {
-                    res.status(502).json({ error: 'yt-dlp failed to build playable MP4.' });
+                    const isBotCheck = /not a bot|sign in to confirm/i.test(stderrText);
+                    res.status(502).json({
+                        error: isBotCheck
+                            ? 'YouTube bot check blocked MP4 build. Refresh YTDLP_COOKIES_B64 or try MP3 audio.'
+                            : 'yt-dlp failed to build playable MP4.'
+                    });
                 }
                 return;
             }
