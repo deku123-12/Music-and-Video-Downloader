@@ -259,7 +259,7 @@ function fetchYtDlpInfo(youtubeUrl) {
                     videoFormats.push({
                         quality: 'Best MP4',
                         type: 'MP4',
-                        url: `ytdlp://best[ext=mp4]/best|${youtubeUrl}`
+                        url: `ytdlp://bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best|${youtubeUrl}`
                     });
                 }
 
@@ -377,7 +377,7 @@ app.get('/proxy-download', async (req, res) => {
         const tmpBase = path.join(os.tmpdir(), `lim3rd_vid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
         const tmpOutput = `${tmpBase}.mp4`;
 
-        const formatSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/best[ext=mp4]`;
+        const formatSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best`;
         const args = getYtDlpBaseArgs([
             '-f', formatSelector,
             '--merge-output-format', 'mp4',
@@ -407,10 +407,13 @@ app.get('/proxy-download', async (req, res) => {
                 cleanupTempPrefix(tmpBase);
                 if (!res.headersSent) {
                     const isBotCheck = /not a bot|sign in to confirm/i.test(stderrText);
+                    const isFormatUnavailable = /requested format is not available/i.test(stderrText);
                     res.status(502).json({
                         error: isBotCheck
                             ? 'YouTube bot check blocked MP4 build. Refresh YTDLP_COOKIES_B64 or try MP3 audio.'
-                            : 'yt-dlp failed to build playable MP4.'
+                            : isFormatUnavailable
+                                ? 'Requested video format is unavailable for this video. Try another quality or MP3 audio.'
+                                : 'yt-dlp failed to build playable MP4.'
                     });
                 }
                 return;
