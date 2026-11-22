@@ -297,7 +297,7 @@ function switchTab(type) {
     }
 }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = 25000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -342,12 +342,12 @@ async function fetchMedia() {
         let response;
 
         try {
-            response = await fetchWithTimeout(backendUrl, {}, 25000);
+            response = await fetchWithTimeout(backendUrl, {}, 30000);
         } catch (firstErr) {
             if (statusMsg) {
                 statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px;"></i> Waking up server, please wait...`;
             }
-            response = await fetchWithTimeout(backendUrl, {}, 30000);
+            response = await fetchWithTimeout(backendUrl, {}, 35000);
         }
 
         const data = await response.json();
@@ -411,14 +411,6 @@ async function fetchMedia() {
     }
 }
 
-function redirectToDirectVideoUrl() {
-    if (!activeDownloadUrl || !/^https?:\/\//i.test(activeDownloadUrl)) {
-        alert(LIM3RD_SERVER_BUSY_MSG);
-        return;
-    }
-    window.open(activeDownloadUrl, '_blank', 'noopener,noreferrer');
-}
-
 const downloadNowBtnEl = document.getElementById('downloadNowBtn');
 if (downloadNowBtnEl) {
     downloadNowBtnEl.onclick = async (e) => {
@@ -441,20 +433,12 @@ if (downloadNowBtnEl) {
         try {
             const res = await fetch(proxiedUrl);
             if (!res.ok) {
-                if (activeDownloadExt === 'mp4') {
-                    redirectToDirectVideoUrl();
-                    return;
-                }
                 alert(LIM3RD_SERVER_BUSY_MSG);
                 return;
             }
 
             const blob = await res.blob();
             if (!blob || blob.size < 1024) {
-                if (activeDownloadExt === 'mp4') {
-                    redirectToDirectVideoUrl();
-                    return;
-                }
                 alert(LIM3RD_SERVER_BUSY_MSG);
                 return;
             }
@@ -468,10 +452,6 @@ if (downloadNowBtnEl) {
             a.remove();
             setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
         } catch (err) {
-            if (activeDownloadExt === 'mp4') {
-                redirectToDirectVideoUrl();
-                return;
-            }
             alert(LIM3RD_SERVER_BUSY_MSG);
         } finally {
             downloadBtn.disabled = false;
