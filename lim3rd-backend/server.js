@@ -10,6 +10,14 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+execFile('yt-dlp', ['-U'], { timeout: 30000 }, (err, stdout, stderr) => {
+    if (err) {
+        console.warn('[yt-dlp update] Note:', String(stderr || err.message || '').trim().slice(-200));
+    } else {
+        console.log('[yt-dlp update] Output:', String(stdout || '').trim().slice(-200));
+    }
+});
+
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || process.env.key;
 const AUDIO_API_HOST = 'yt-search-and-download-mp3.p.rapidapi.com';
 
@@ -294,9 +302,14 @@ async function fetchYtDlpInfo(youtubeUrl) {
 }
 
 async function fetchYouTubeAudio(youtubeUrl) {
+    const ytdlpAudioFormats = [
+        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` },
+        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` }
+    ];
+
     if (!RAPIDAPI_KEY) {
-        console.warn('[AudioAPI] Skipped: RAPIDAPI_KEY is missing.');
-        return null;
+        console.log('[AudioAPI] No RAPIDAPI_KEY, using yt-dlp audio formats.');
+        return { title: '', thumbnail: '', formats: ytdlpAudioFormats };
     }
 
     const apiEndpoint = `https://${AUDIO_API_HOST}/mp3?url=${encodeURIComponent(youtubeUrl)}`;
@@ -315,8 +328,8 @@ async function fetchYouTubeAudio(youtubeUrl) {
         try {
             result = JSON.parse(rawText);
         } catch (e) {
-            console.warn('[AudioAPI] Invalid JSON response:', rawText.slice(0, 200));
-            return null;
+            console.warn('[AudioAPI] Invalid JSON, falling back to yt-dlp audio.');
+            return { title: '', thumbnail: '', formats: ytdlpAudioFormats };
         }
 
         const audioUrl = findAnyMediaUrl(result);
@@ -333,12 +346,12 @@ async function fetchYouTubeAudio(youtubeUrl) {
             };
         }
 
-        console.warn('[AudioAPI] No playable audio URL returned. Status:', apiResponse.status);
+        console.warn('[AudioAPI] Status:', apiResponse.status, '-> falling back to yt-dlp audio.');
     } catch (err) {
-        console.warn('[AudioAPI] Request failed:', err.message || err);
+        console.warn('[AudioAPI] Error:', err.message || err, '-> falling back to yt-dlp audio.');
     }
 
-    return null;
+    return { title: '', thumbnail: '', formats: ytdlpAudioFormats };
 }
 
 function cleanupTempPrefix(tmpBase) {
