@@ -25,9 +25,9 @@ if (process.env.YTDLP_COOKIES_B64) {
     }
 }
 
-function getYtDlpBaseArgs(extraArgs = []) {
+function getYtDlpBaseArgs(extraArgs = [], useCookies = true) {
     const args = ['--no-playlist', '--no-warnings'];
-    if (cookiesFilePath) {
+    if (useCookies && cookiesFilePath) {
         args.push('--cookies', cookiesFilePath);
     }
     return [...args, ...extraArgs];
@@ -192,9 +192,9 @@ async function fetchYouTubeOEmbed(youtubeUrl) {
     }
 }
 
-function fetchYtDlpInfo(youtubeUrl) {
+function runYtDlpJsonOnce(youtubeUrl, useCookies) {
     return new Promise((resolve) => {
-        const args = getYtDlpBaseArgs(['--dump-single-json', youtubeUrl]);
+        const args = getYtDlpBaseArgs(['--dump-single-json', youtubeUrl], useCookies);
         execFile('yt-dlp', args, { timeout: 25000, maxBuffer: 1024 * 1024 * 20 }, (err, stdout) => {
             if (err || !stdout) return resolve(null);
             try {
@@ -261,6 +261,16 @@ function fetchYtDlpInfo(youtubeUrl) {
     });
 }
 
+async function fetchYtDlpInfo(youtubeUrl) {
+    if (cookiesFilePath) {
+        const withCookies = await runYtDlpJsonOnce(youtubeUrl, true);
+        if (withCookies && (withCookies.videoFormats.length > 0 || withCookies.fallbackAudioFormats.length > 0 || withCookies.title)) {
+            return withCookies;
+        }
+    }
+    return await runYtDlpJsonOnce(youtubeUrl, false);
+}
+
 async function fetchYouTubeAudio(youtubeUrl) {
     if (!RAPIDAPI_KEY) return null;
 
@@ -313,7 +323,7 @@ function cleanupTempPrefix(tmpBase) {
     } catch (_) {}
 }
 
-function runYtDlpMp4(ytUrl, selector, tmpOutput) {
+function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
     return new Promise((resolve) => {
         const args = getYtDlpBaseArgs([
             '-f', selector,
@@ -321,7 +331,7 @@ function runYtDlpMp4(ytUrl, selector, tmpOutput) {
             '--remux-video', 'mp4',
             '-o', tmpOutput,
             ytUrl
-        ]);
+        ], useCookies);
 
         const proc = spawn('yt-dlp', args);
         let stderrText = '';
@@ -340,6 +350,18 @@ function runYtDlpMp4(ytUrl, selector, tmpOutput) {
             resolve({ ok: code === 0 && exists && size >= 1024, code, stderrText, proc });
         });
     });
+}
+
+async function runYtDlpMp4WithFallback(ytUrl, selector, tmpOutput) {
+    if (cookiesFilePath) {
+        const first = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, true);
+        if (first.ok) return first;
+        cleanupTempPrefix(path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4')));
+    }
+    const second = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, false);
+    if (second.ok) return second;
+    cleanupTempPrefix(path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4')));
+    return await runYtDlpMp4Once(ytUrl, 'bv*+ba/b', tmpOutput, false);
 }
 
 app.get('/region', (req, res) => {
@@ -380,11 +402,7 @@ app.get('/proxy-download', async (req, res) => {
         const tmpOutput = `${tmpBase}.mp4`;
 
         const formatSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/best[ext=mp4]/bv*+ba/b`;
-        let result = await runYtDlpMp4(ytUrl, formatSelector, tmpOutput);
-        if (!result.ok) {
-            cleanupTempPrefix(tmpBase);
-            result = await runYtDlpMp4(ytUrl, 'bv*+ba/b', tmpOutput);
-        }
+        const result = await runYtDlpMp4WithFallback(ytUrl, formatSelector, tmpOutput);
 
         if (!result.ok || !fs.existsSync(tmpOutput)) {
             console.error('yt-dlp MP4 build failed:', result.code, result.stderrText.slice(-400));
@@ -436,50 +454,53 @@ app.get('/proxy-download', async (req, res) => {
         const tmpBase = path.join(os.tmpdir(), `lim3rd_aud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
         const tmpOutput = `${tmpBase}.mp3`;
 
-        const args = getYtDlpBaseArgs([
-            '-f', audioSelector,
-            '-x',
-            '--audio-format', 'mp3',
-            '--audio-quality', '0',
-            '-o', `${tmpBase}.%(ext)s`,
-            ytUrl
-        ]);
+        const runAudioOnce = (useCookies) => new Promise((resolve) => {
+            const args = getYtDlpBaseArgs([
+                '-f', audioSelector,
+                '-x',
+                '--audio-format', 'mp3',
+                '--audio-quality', '0',
+                '-o', `${tmpBase}.%(ext)s`,
+                ytUrl
+            ], useCookies);
 
-        const proc = spawn('yt-dlp', args);
+            const proc = spawn('yt-dlp', args);
+            proc.on('error', () => resolve(false));
+            proc.on('close', (code) => {
+                resolve(code === 0 && fs.existsSync(tmpOutput) && fs.statSync(tmpOutput).size >= 1024);
+            });
+        });
 
-        proc.on('error', () => {
+        let ok = false;
+        if (cookiesFilePath) {
+            ok = await runAudioOnce(true);
+            if (!ok) cleanupTempPrefix(tmpBase);
+        }
+        if (!ok) {
+            ok = await runAudioOnce(false);
+        }
+
+        if (!ok || !fs.existsSync(tmpOutput)) {
             cleanupTempPrefix(tmpBase);
-            if (!res.headersSent) res.status(500).json({ error: 'Failed to extract audio.' });
-        });
+            if (!res.headersSent) res.status(502).json({ error: 'Failed to build MP3 audio.' });
+            return;
+        }
 
-        proc.on('close', (code) => {
-            if (code !== 0 || !fs.existsSync(tmpOutput)) {
-                cleanupTempPrefix(tmpBase);
-                if (!res.headersSent) res.status(502).json({ error: 'Failed to build MP3 audio.' });
-                return;
-            }
-
-            try {
-                const stat = fs.statSync(tmpOutput);
-                res.setHeader('Content-Type', 'audio/mpeg');
-                res.setHeader('Content-Length', stat.size);
-                res.setHeader(
-                    'Content-Disposition',
-                    `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
-                );
-                const stream = fs.createReadStream(tmpOutput);
-                stream.pipe(res);
-                stream.on('close', () => cleanupTempPrefix(tmpBase));
-                stream.on('error', () => cleanupTempPrefix(tmpBase));
-            } catch (_) {
-                cleanupTempPrefix(tmpBase);
-            }
-        });
-
-        req.on('close', () => {
-            if (!proc.killed) proc.kill('SIGKILL');
+        try {
+            const stat = fs.statSync(tmpOutput);
+            res.setHeader('Content-Type', 'audio/mpeg');
+            res.setHeader('Content-Length', stat.size);
+            res.setHeader(
+                'Content-Disposition',
+                `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
+            );
+            const stream = fs.createReadStream(tmpOutput);
+            stream.pipe(res);
+            stream.on('close', () => cleanupTempPrefix(tmpBase));
+            stream.on('error', () => cleanupTempPrefix(tmpBase));
+        } catch (_) {
             cleanupTempPrefix(tmpBase);
-        });
+        }
 
         return;
     }
@@ -556,11 +577,25 @@ app.get('/download', async (req, res) => {
                 fetchYouTubeAudio(targetURL).catch(() => null)
             ]);
 
-            const videoFormats = ytDlpData?.videoFormats || [];
-            const audioFormats =
+            let videoFormats = ytDlpData?.videoFormats || [];
+            if (videoFormats.length === 0) {
+                videoFormats = [
+                    { quality: 'Best MP4', type: 'MP4', url: `ytdlp://bv*+ba/b|${targetURL}` },
+                    { quality: '360p', type: 'MP4', url: `ytdlp://best[height<=360]/bv*+ba/b|${targetURL}` }
+                ];
+            }
+
+            let audioFormats =
                 audioData && Array.isArray(audioData.formats) && audioData.formats.length > 0
                     ? audioData.formats
                     : (ytDlpData?.fallbackAudioFormats || []);
+
+            if (audioFormats.length === 0) {
+                audioFormats = [
+                    { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${targetURL}` },
+                    { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio/best|${targetURL}` }
+                ];
+            }
 
             const title = ytDlpData?.title || audioData?.title || oembedData?.title || 'Lim3rd Media File';
             const author = ytDlpData?.author || 'Lim3rd Universal Downloader';
