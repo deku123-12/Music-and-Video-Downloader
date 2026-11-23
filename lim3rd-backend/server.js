@@ -10,14 +10,6 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-execFile('yt-dlp', ['-U'], { timeout: 30000 }, (err, stdout, stderr) => {
-    if (err) {
-        console.warn('[yt-dlp update] Note:', String(stderr || err.message || '').trim().slice(-200));
-    } else {
-        console.log('[yt-dlp update] Output:', String(stdout || '').trim().slice(-200));
-    }
-});
-
 const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || process.env.key;
 const AUDIO_API_HOST = 'yt-search-and-download-mp3.p.rapidapi.com';
 
@@ -39,7 +31,7 @@ if (process.env.YTDLP_COOKIES_B64) {
 console.log('[Config] RAPIDAPI_KEY present:', Boolean(RAPIDAPI_KEY));
 
 function getYtDlpBaseArgs(extraArgs = [], useCookies = true) {
-    const args = ['--no-playlist', '--no-warnings'];
+    const args = ['--no-playlist', '--no-warnings', '--js-runtimes', 'node'];
     if (useCookies && cookiesFilePath) {
         args.push('--cookies', cookiesFilePath);
     }
