@@ -31,7 +31,12 @@ if (process.env.YTDLP_COOKIES_B64) {
 console.log('[Config] RAPIDAPI_KEY present:', Boolean(RAPIDAPI_KEY));
 
 function getYtDlpBaseArgs(extraArgs = [], useCookies = true) {
-    const args = ['--no-playlist', '--no-warnings', '--js-runtimes', 'node'];
+    const args = [
+        '-v',
+        '--no-playlist',
+        '--js-runtimes', 'node',
+        '--remote-components', 'ejs:github'
+    ];
     if (useCookies && cookiesFilePath) {
         args.push('--cookies', cookiesFilePath);
     }
@@ -211,8 +216,8 @@ function runYtDlpJsonOnce(youtubeUrl, useCookies) {
 
         execFile('yt-dlp', args, { timeout: 25000, maxBuffer: 1024 * 1024 * 20 }, (err, stdout, stderr) => {
             if (err || !stdout) {
-                const errSnippet = String(stderr || err?.message || 'Unknown error').trim().slice(-300);
-                console.warn(`[yt-dlp] Failed (${modeLabel}):`, errSnippet);
+                const errSnippet = String(stderr || err?.message || 'Unknown error').trim().slice(-1500);
+                console.warn(`[yt-dlp] Failed (${modeLabel}):\n${errSnippet}`);
                 return resolve(null);
             }
             try {
@@ -450,7 +455,7 @@ app.get('/proxy-download', async (req, res) => {
         const result = await runYtDlpMp4WithFallback(ytUrl, formatSelector, tmpOutput);
 
         if (!result.ok || !fs.existsSync(tmpOutput)) {
-            console.error('[MP4 Build] Failed completely:', result.code, result.stderrText.slice(-400));
+            console.error('[MP4 Build] Failed completely:', result.code, result.stderrText.slice(-800));
             cleanupTempPrefix(tmpBase);
             if (!res.headersSent) {
                 res.status(502).json({ error: 'yt-dlp failed to build playable MP4.' });
