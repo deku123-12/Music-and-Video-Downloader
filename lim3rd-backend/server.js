@@ -67,9 +67,9 @@ async function withYtDlpSlot(fn) {
 function getYtDlpBaseArgs(extraArgs = [], useCookies = true) {
     const args = [
         '--no-playlist',
-        '--no-warnings',
         '--js-runtimes', 'deno',
-        '--remote-components', 'ejs:github'
+        '--remote-components', 'ejs:github',
+        '--extractor-args', 'youtube:player_client=android,web'
     ];
     if (useCookies && cookiesFilePath) {
         args.push('--cookies', cookiesFilePath);
@@ -189,7 +189,7 @@ function runYtDlpJsonOnce(youtubeUrl, useCookies) {
         execFile('yt-dlp', args, { timeout: YTDLP_JSON_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 20 }, (err, stdout, stderr) => {
             const errText = String(stderr || err?.message || '');
             if (err || !stdout) {
-                console.warn(`[yt-dlp] Failed (${modeLabel}):`, errText.trim().slice(-600) || 'Unknown error');
+                console.warn(`[yt-dlp] Failed (${modeLabel}):`, errText.trim().slice(-800) || 'Unknown error');
                 return resolve({ data: null, rateLimited: isRateLimitedText(errText) });
             }
             try {
