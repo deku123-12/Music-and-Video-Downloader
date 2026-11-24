@@ -10,8 +10,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const RAPIDAPI_KEY = process.env.RAPIDAPI_KEY || process.env.key;
-const AUDIO_API_HOST = 'yt-search-and-download-mp3.p.rapidapi.com';
+const MAX_CONCURRENT_YTDLP = 1;
+const INFO_CACHE_TTL_MS = 5 * 60 * 1000;
+const YTDLP_JSON_TIMEOUT_MS = 15000;
 
 let cookiesFilePath = null;
 if (process.env.YTDLP_COOKIES_B64) {
@@ -28,13 +29,46 @@ if (process.env.YTDLP_COOKIES_B64) {
     console.log('[Cookies] No YTDLP_COOKIES_B64 found in environment.');
 }
 
-console.log('[Config] RAPIDAPI_KEY present:', Boolean(RAPIDAPI_KEY));
+let activeYtDlpJobs = 0;
+const ytdlpWaitQueue = [];
+const infoCache = new Map();
+
+function acquireYtDlpSlot() {
+    return new Promise((resolve) => {
+        if (activeYtDlpJobs < MAX_CONCURRENT_YTDLP) {
+            activeYtDlpJobs += 1;
+            resolve(() => {
+                activeYtDlpJobs = Math.max(0, activeYtDlpJobs - 1);
+                const next = ytdlpWaitQueue.shift();
+                if (next) next();
+            });
+            return;
+        }
+        ytdlpWaitQueue.push(() => {
+            activeYtDlpJobs += 1;
+            resolve(() => {
+                activeYtDlpJobs = Math.max(0, activeYtDlpJobs - 1);
+                const next = ytdlpWaitQueue.shift();
+                if (next) next();
+            });
+        });
+    });
+}
+
+async function withYtDlpSlot(fn) {
+    const release = await acquireYtDlpSlot();
+    try {
+        return await fn();
+    } finally {
+        release();
+    }
+}
 
 function getYtDlpBaseArgs(extraArgs = [], useCookies = true) {
     const args = [
-        '-v',
         '--no-playlist',
-        '--js-runtimes', 'node',
+        '--no-warnings',
+        '--js-runtimes', 'deno',
         '--remote-components', 'ejs:github'
     ];
     if (useCookies && cookiesFilePath) {
@@ -76,69 +110,6 @@ function extractYouTubeId(rawUrl = '') {
     return null;
 }
 
-function isPlayableDirectUrl(url = '') {
-    if (typeof url !== 'string' || !url.startsWith('http')) return false;
-
-    if (
-        url.includes('.m3u8') ||
-        url.includes('/manifest/hls_') ||
-        url.includes('/playlist/')
-    ) {
-        return false;
-    }
-
-    if (
-        url.includes('ytimg.com') ||
-        url.includes('googleusercontent.com') ||
-        /\.(jpg|jpeg|png|webp|gif)(\?|$)/i.test(url)
-    ) {
-        return false;
-    }
-
-    return true;
-}
-
-function findAnyMediaUrl(obj) {
-    if (!obj) return null;
-    if (typeof obj === 'string') {
-        if (isPlayableDirectUrl(obj)) {
-            return obj;
-        }
-        return null;
-    }
-    if (Array.isArray(obj)) {
-        for (const item of obj) {
-            const found = findAnyMediaUrl(item);
-            if (found) return found;
-        }
-    } else if (typeof obj === 'object') {
-        const priorityKeys = ['download_url', 'downloadUrl', 'mp3', 'link', 'url', 'dlink', 'file', 'video', 'audio', 'mp4', 'href', 'src'];
-        for (const key of priorityKeys) {
-            if (obj[key]) {
-                const found = findAnyMediaUrl(obj[key]);
-                if (found) return found;
-            }
-        }
-        for (const key of Object.keys(obj)) {
-            if (key === 'manifest_url' || key.toLowerCase().includes('thumb') || key.toLowerCase().includes('image')) continue;
-            const found = findAnyMediaUrl(obj[key]);
-            if (found) return found;
-        }
-    }
-    return null;
-}
-
-function extractTitle(payload, fallback = 'Lim3rd Media File') {
-    return (
-        payload?.title ||
-        payload?.videoDetails?.title ||
-        payload?.result?.title ||
-        payload?.data?.title ||
-        payload?.info?.title ||
-        fallback
-    );
-}
-
 function extractThumbnail(payload, videoId = '') {
     if (Array.isArray(payload?.thumbnail) && payload.thumbnail.length > 0) {
         const best = payload.thumbnail[payload.thumbnail.length - 1];
@@ -157,7 +128,11 @@ function extractThumbnail(payload, videoId = '') {
     return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : '';
 }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = 12000) {
+function isRateLimitedText(text = '') {
+    return text.includes('HTTP Error 429') || text.includes('Too Many Requests');
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -175,7 +150,7 @@ async function resolveRedirectUrl(url) {
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
             }
-        }, 10000);
+        }, 8000);
         return response.url || url;
     } catch (err) {
         console.warn('[Redirect] Failed to resolve URL:', err.message || err);
@@ -190,20 +165,17 @@ async function fetchYouTubeOEmbed(youtubeUrl) {
         const res = await fetchWithTimeout(
             `https://www.youtube.com/oembed?url=${encodeURIComponent(youtubeUrl)}&format=json`,
             {},
-            8000
+            6000
         );
         if (!res.ok) {
-            console.warn('[oEmbed] Non-OK status:', res.status);
             return { title: 'Lim3rd Media File', thumbnail: fallbackThumb };
         }
         const data = await res.json();
-        console.log('[oEmbed] Success:', data?.title || 'No title');
         return {
             title: data?.title || 'Lim3rd Media File',
             thumbnail: data?.thumbnail_url || fallbackThumb
         };
-    } catch (err) {
-        console.warn('[oEmbed] Error:', err.message || err);
+    } catch (_) {
         return { title: 'Lim3rd Media File', thumbnail: fallbackThumb };
     }
 }
@@ -214,11 +186,11 @@ function runYtDlpJsonOnce(youtubeUrl, useCookies) {
         const args = getYtDlpBaseArgs(['--dump-single-json', youtubeUrl], useCookies);
         console.log(`[yt-dlp] Running (${modeLabel}) for:`, youtubeUrl);
 
-        execFile('yt-dlp', args, { timeout: 25000, maxBuffer: 1024 * 1024 * 20 }, (err, stdout, stderr) => {
+        execFile('yt-dlp', args, { timeout: YTDLP_JSON_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 20 }, (err, stdout, stderr) => {
+            const errText = String(stderr || err?.message || '');
             if (err || !stdout) {
-                const errSnippet = String(stderr || err?.message || 'Unknown error').trim().slice(-1500);
-                console.warn(`[yt-dlp] Failed (${modeLabel}):\n${errSnippet}`);
-                return resolve(null);
+                console.warn(`[yt-dlp] Failed (${modeLabel}):`, errText.trim().slice(-600) || 'Unknown error');
+                return resolve({ data: null, rateLimited: isRateLimitedText(errText) });
             }
             try {
                 const info = JSON.parse(stdout);
@@ -262,93 +234,58 @@ function runYtDlpJsonOnce(youtubeUrl, useCookies) {
                     }
                 }
 
-                const hasAnyAudioStream = formats.some((f) => f.acodec && f.acodec !== 'none' && f.format_id);
-                const fallbackAudioFormats = hasAnyAudioStream
-                    ? [
-                        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` },
-                        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` }
-                    ]
-                    : [];
+                const audioFormats = [
+                    { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` },
+                    { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` }
+                ];
 
-                console.log(`[yt-dlp] Success (${modeLabel}) -> videoFormats: ${videoFormats.length}, audioFallback: ${fallbackAudioFormats.length}`);
+                console.log(`[yt-dlp] Success (${modeLabel}) -> videoFormats: ${videoFormats.length}, audioFormats: ${audioFormats.length}`);
 
                 resolve({
-                    title: info.title || '',
-                    author: info.uploader || info.channel || '',
-                    thumbnail: info.thumbnail || extractThumbnail(info, extractYouTubeId(youtubeUrl)),
-                    videoFormats,
-                    fallbackAudioFormats
+                    data: {
+                        title: info.title || '',
+                        author: info.uploader || info.channel || '',
+                        thumbnail: info.thumbnail || extractThumbnail(info, extractYouTubeId(youtubeUrl)),
+                        videoFormats,
+                        audioFormats
+                    },
+                    rateLimited: false
                 });
             } catch (parseErr) {
                 console.warn(`[yt-dlp] JSON parse failed (${modeLabel}):`, parseErr.message || parseErr);
-                resolve(null);
+                resolve({ data: null, rateLimited: false });
             }
         });
     });
 }
 
 async function fetchYtDlpInfo(youtubeUrl) {
-    if (cookiesFilePath) {
-        const withCookies = await runYtDlpJsonOnce(youtubeUrl, true);
-        if (withCookies && (withCookies.videoFormats.length > 0 || withCookies.fallbackAudioFormats.length > 0 || withCookies.title)) {
-            return withCookies;
-        }
-        console.log('[yt-dlp] Cookies attempt returned empty/failed, retrying WITHOUT cookies...');
-    }
-    return await runYtDlpJsonOnce(youtubeUrl, false);
-}
-
-async function fetchYouTubeAudio(youtubeUrl) {
-    const ytdlpAudioFormats = [
-        { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` },
-        { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` }
-    ];
-
-    if (!RAPIDAPI_KEY) {
-        console.log('[AudioAPI] No RAPIDAPI_KEY, using yt-dlp audio formats.');
-        return { title: '', thumbnail: '', formats: ytdlpAudioFormats };
+    const cacheKey = youtubeUrl.trim();
+    const cached = infoCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < INFO_CACHE_TTL_MS) {
+        console.log('[yt-dlp] Cache hit for:', cacheKey);
+        return cached.value;
     }
 
-    const apiEndpoint = `https://${AUDIO_API_HOST}/mp3?url=${encodeURIComponent(youtubeUrl)}`;
-    try {
-        console.log('[AudioAPI] Requesting MP3 for:', youtubeUrl);
-        const apiResponse = await fetchWithTimeout(apiEndpoint, {
-            method: 'GET',
-            headers: {
-                'x-rapidapi-host': AUDIO_API_HOST,
-                'x-rapidapi-key': RAPIDAPI_KEY
+    const result = await withYtDlpSlot(async () => {
+        if (cookiesFilePath) {
+            const first = await runYtDlpJsonOnce(youtubeUrl, true);
+            if (first.data && (first.data.videoFormats.length > 0 || first.data.title)) {
+                return first.data;
             }
-        }, 12000);
-
-        const rawText = await apiResponse.text();
-        let result = {};
-        try {
-            result = JSON.parse(rawText);
-        } catch (e) {
-            console.warn('[AudioAPI] Invalid JSON, falling back to yt-dlp audio.');
-            return { title: '', thumbnail: '', formats: ytdlpAudioFormats };
+            if (first.rateLimited) {
+                return null;
+            }
         }
+        const second = await runYtDlpJsonOnce(youtubeUrl, false);
+        return second.data || null;
+    });
 
-        const audioUrl = findAnyMediaUrl(result);
-
-        if (apiResponse.ok && audioUrl) {
-            console.log('[AudioAPI] Success -> MP3 URL found.');
-            return {
-                title: extractTitle(result, ''),
-                thumbnail: extractThumbnail(result),
-                formats: [
-                    { quality: 'High Quality', type: 'MP3', url: audioUrl },
-                    { quality: 'Standard Quality', type: 'MP3', url: audioUrl }
-                ]
-            };
-        }
-
-        console.warn('[AudioAPI] Status:', apiResponse.status, '-> falling back to yt-dlp audio.');
-    } catch (err) {
-        console.warn('[AudioAPI] Error:', err.message || err, '-> falling back to yt-dlp audio.');
+    if (result && (result.videoFormats.length > 0 || result.title)) {
+        infoCache.set(cacheKey, { ts: Date.now(), value: result });
     }
 
-    return { title: '', thumbnail: '', formats: ytdlpAudioFormats };
+    return result;
 }
 
 function cleanupTempPrefix(tmpBase) {
@@ -371,7 +308,6 @@ function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
         const args = getYtDlpBaseArgs([
             '-f', selector,
             '--merge-output-format', 'mp4',
-            '--remux-video', 'mp4',
             '-o', tmpOutput,
             ytUrl
         ], useCookies);
@@ -380,49 +316,107 @@ function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
         const proc = spawn('yt-dlp', args);
         let stderrText = '';
 
+        const killTimer = setTimeout(() => {
+            try {
+                proc.kill('SIGKILL');
+            } catch (_) {}
+        }, 45000);
+
         proc.stderr.on('data', (chunk) => {
             stderrText += chunk.toString();
         });
 
         proc.on('error', (err) => {
-            console.error(`[MP4 Build] Spawn error (${modeLabel}):`, err.message || err);
-            resolve({ ok: false, code: -1, stderrText: String(err?.message || err), proc });
+            clearTimeout(killTimer);
+            resolve({ ok: false, code: -1, stderrText: String(err?.message || err) });
         });
 
         proc.on('close', (code) => {
+            clearTimeout(killTimer);
             const exists = fs.existsSync(tmpOutput);
             const size = exists ? fs.statSync(tmpOutput).size : 0;
             const ok = code === 0 && exists && size >= 1024;
             console.log(`[MP4 Build] Finished (${modeLabel}) code=${code}, ok=${ok}, size=${size}`);
-            resolve({ ok, code, stderrText, proc });
+            resolve({ ok, code, stderrText });
         });
     });
 }
 
 async function runYtDlpMp4WithFallback(ytUrl, selector, tmpOutput) {
-    const isRateLimited = (text = '') =>
-        text.includes('HTTP Error 429') || text.includes('Too Many Requests');
-    const tmpPrefix = path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4'));
+    return await withYtDlpSlot(async () => {
+        const tmpPrefix = path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4'));
 
-    if (cookiesFilePath) {
-        const first = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, true);
-        if (first.ok) return first;
-        cleanupTempPrefix(tmpPrefix);
-        if (isRateLimited(first.stderrText)) {
-            console.warn('[MP4 Build] Hit HTTP 429 on WITH_COOKIES, skipping extra retries.');
-            return first;
+        if (cookiesFilePath) {
+            const first = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, true);
+            if (first.ok) return first;
+            cleanupTempPrefix(tmpPrefix);
+            if (isRateLimitedText(first.stderrText)) {
+                return first;
+            }
         }
-    }
 
-    const second = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, false);
-    if (second.ok) return second;
-    cleanupTempPrefix(tmpPrefix);
-    if (isRateLimited(second.stderrText)) {
-        console.warn('[MP4 Build] Hit HTTP 429 on NO_COOKIES, skipping extra retries.');
+        const second = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, false);
+        if (second.ok) return second;
+        cleanupTempPrefix(tmpPrefix);
         return second;
-    }
+    });
+}
 
-    return await runYtDlpMp4Once(ytUrl, 'bv*+ba/b', tmpOutput, false);
+function runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, useCookies) {
+    return new Promise((resolve) => {
+        const modeLabel = useCookies && cookiesFilePath ? 'WITH_COOKIES' : 'NO_COOKIES';
+        const args = getYtDlpBaseArgs([
+            '-f', selector,
+            '-x',
+            '--audio-format', 'mp3',
+            '--audio-quality', '5',
+            '-o', `${tmpBase}.%(ext)s`,
+            ytUrl
+        ], useCookies);
+
+        console.log(`[MP3 Build] Starting (${modeLabel}) selector: ${selector}`);
+        const proc = spawn('yt-dlp', args);
+        let stderrText = '';
+
+        const killTimer = setTimeout(() => {
+            try {
+                proc.kill('SIGKILL');
+            } catch (_) {}
+        }, 40000);
+
+        proc.stderr.on('data', (chunk) => {
+            stderrText += chunk.toString();
+        });
+
+        proc.on('error', (err) => {
+            clearTimeout(killTimer);
+            resolve({ ok: false, stderrText: String(err?.message || err) });
+        });
+
+        proc.on('close', (code) => {
+            clearTimeout(killTimer);
+            const ok = code === 0 && fs.existsSync(tmpOutput) && fs.statSync(tmpOutput).size >= 1024;
+            console.log(`[MP3 Build] Finished (${modeLabel}) code=${code}, ok=${ok}`);
+            resolve({ ok, stderrText });
+        });
+    });
+}
+
+async function runYtDlpAudioWithFallback(ytUrl, selector, tmpBase, tmpOutput) {
+    return await withYtDlpSlot(async () => {
+        if (cookiesFilePath) {
+            const first = await runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, true);
+            if (first.ok) return first;
+            cleanupTempPrefix(tmpBase);
+            if (isRateLimitedText(first.stderrText)) {
+                return first;
+            }
+        }
+        const second = await runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, false);
+        if (second.ok) return second;
+        cleanupTempPrefix(tmpBase);
+        return second;
+    });
 }
 
 app.get('/region', (req, res) => {
@@ -435,7 +429,6 @@ app.get('/region', (req, res) => {
         .trim()
         .toUpperCase();
 
-    console.log('[GET /region] countryCode:', countryCode);
     return res.json({ countryCode });
 });
 
@@ -443,8 +436,6 @@ app.get('/proxy-download', async (req, res) => {
     const fileUrl = req.query.url;
     const rawTitle = req.query.title || 'Lim3rd_Media';
     const ext = (req.query.ext || 'mp4').toLowerCase().replace(/[^a-z0-9]/g, '') || 'mp4';
-
-    console.log('[GET /proxy-download] ext:', ext, 'urlType:', fileUrl ? fileUrl.slice(0, 24) : 'MISSING');
 
     if (!fileUrl) {
         return res.status(400).json({ error: 'Missing media URL' });
@@ -465,14 +456,14 @@ app.get('/proxy-download', async (req, res) => {
         const tmpBase = path.join(os.tmpdir(), `lim3rd_vid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
         const tmpOutput = `${tmpBase}.mp4`;
 
-        const formatSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/best[ext=mp4]/bv*+ba/b`;
+        const formatSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/best[ext=mp4]/b`;
         const result = await runYtDlpMp4WithFallback(ytUrl, formatSelector, tmpOutput);
 
         if (!result.ok || !fs.existsSync(tmpOutput)) {
-            console.error('[MP4 Build] Failed completely:', result.code, result.stderrText.slice(-800));
+            console.error('[MP4 Build] Failed:', result.code, result.stderrText.slice(-500));
             cleanupTempPrefix(tmpBase);
             if (!res.headersSent) {
-                const hit429 = result.stderrText.includes('HTTP Error 429') || result.stderrText.includes('Too Many Requests');
+                const hit429 = isRateLimitedText(result.stderrText);
                 res.status(hit429 ? 429 : 502).json({
                     error: hit429
                         ? 'YouTube rate-limited the server (HTTP 429). Please wait a bit and try again.'
@@ -484,7 +475,6 @@ app.get('/proxy-download', async (req, res) => {
 
         try {
             const stat = fs.statSync(tmpOutput);
-            console.log('[MP4 Build] Streaming file:', filename, 'bytes:', stat.size);
             res.setHeader('Content-Type', 'video/mp4');
             res.setHeader('Content-Length', stat.size);
             res.setHeader(
@@ -499,13 +489,12 @@ app.get('/proxy-download', async (req, res) => {
                 cleanupTempPrefix(tmpBase);
                 if (!res.headersSent) res.status(500).end();
             });
-        } catch (e) {
+        } catch (_) {
             cleanupTempPrefix(tmpBase);
             if (!res.headersSent) {
                 res.status(500).json({ error: 'Failed to read generated MP4.' });
             }
         }
-
         return;
     }
 
@@ -524,47 +513,12 @@ app.get('/proxy-download', async (req, res) => {
         const tmpBase = path.join(os.tmpdir(), `lim3rd_aud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
         const tmpOutput = `${tmpBase}.mp3`;
 
-        const runAudioOnce = (useCookies) => new Promise((resolve) => {
-            const modeLabel = useCookies && cookiesFilePath ? 'WITH_COOKIES' : 'NO_COOKIES';
-            const args = getYtDlpBaseArgs([
-                '-f', audioSelector,
-                '-x',
-                '--audio-format', 'mp3',
-                '--audio-quality', '0',
-                '-o', `${tmpBase}.%(ext)s`,
-                ytUrl
-            ], useCookies);
-
-            console.log(`[MP3 Build] Starting (${modeLabel}) selector: ${audioSelector}`);
-            const proc = spawn('yt-dlp', args);
-            let stderrText = '';
-            proc.stderr.on('data', (chunk) => {
-                stderrText += chunk.toString();
-            });
-            proc.on('error', () => resolve({ ok: false, stderrText }));
-            proc.on('close', (code) => {
-                const ok = code === 0 && fs.existsSync(tmpOutput) && fs.statSync(tmpOutput).size >= 1024;
-                console.log(`[MP3 Build] Finished (${modeLabel}) code=${code}, ok=${ok}`);
-                resolve({ ok, stderrText });
-            });
-        });
-
-        const isRateLimited = (text = '') =>
-            text.includes('HTTP Error 429') || text.includes('Too Many Requests');
-
-        let attempt = { ok: false, stderrText: '' };
-        if (cookiesFilePath) {
-            attempt = await runAudioOnce(true);
-            if (!attempt.ok) cleanupTempPrefix(tmpBase);
-        }
-        if (!attempt.ok && !isRateLimited(attempt.stderrText)) {
-            attempt = await runAudioOnce(false);
-        }
+        const attempt = await runYtDlpAudioWithFallback(ytUrl, audioSelector, tmpBase, tmpOutput);
 
         if (!attempt.ok || !fs.existsSync(tmpOutput)) {
             cleanupTempPrefix(tmpBase);
             if (!res.headersSent) {
-                const hit429 = isRateLimited(attempt.stderrText);
+                const hit429 = isRateLimitedText(attempt.stderrText);
                 res.status(hit429 ? 429 : 502).json({
                     error: hit429
                         ? 'YouTube rate-limited the server (HTTP 429). Please wait a bit and try again.'
@@ -576,7 +530,6 @@ app.get('/proxy-download', async (req, res) => {
 
         try {
             const stat = fs.statSync(tmpOutput);
-            console.log('[MP3 Build] Streaming file:', filename, 'bytes:', stat.size);
             res.setHeader('Content-Type', 'audio/mpeg');
             res.setHeader('Content-Length', stat.size);
             res.setHeader(
@@ -590,7 +543,6 @@ app.get('/proxy-download', async (req, res) => {
         } catch (_) {
             cleanupTempPrefix(tmpBase);
         }
-
         return;
     }
 
@@ -609,7 +561,7 @@ app.get('/proxy-download', async (req, res) => {
                 'Accept': '*/*',
                 'Accept-Language': 'en-US,en;q=0.9'
             }
-        }, 25000);
+        }, 20000);
 
         const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
         const isInvalidMediaType =
@@ -619,7 +571,6 @@ app.get('/proxy-download', async (req, res) => {
             contentType.includes('mpegurl');
 
         if (!upstream.ok || !upstream.body || isInvalidMediaType) {
-            console.warn('[Proxy Stream] Blocked or invalid content-type:', upstream.status, contentType);
             return res.status(502).json({
                 error: `YouTube/GoogleVideo blocked server proxy (${upstream.status}). Try another format or audio MP3.`,
                 directUrl: fileUrl
@@ -631,7 +582,6 @@ app.get('/proxy-download', async (req, res) => {
         const finalContentType = contentType || (ext === 'mp3' ? 'audio/mpeg' : 'video/mp4');
         const contentLength = upstream.headers.get('content-length');
 
-        console.log('[Proxy Stream] Streaming direct URL:', filename, 'type:', finalContentType);
         res.setHeader('Content-Type', finalContentType);
         res.setHeader(
             'Content-Disposition',
@@ -642,8 +592,7 @@ app.get('/proxy-download', async (req, res) => {
         }
 
         Readable.fromWeb(upstream.body).pipe(res);
-    } catch (err) {
-        console.error('[Proxy Stream] Error:', err.message || err);
+    } catch (_) {
         return res.status(500).json({ error: 'Failed to stream media file.' });
     }
 });
@@ -664,21 +613,20 @@ app.get('/download', async (req, res) => {
         const targetURL = isDirectYouTube ? rawURL : await resolveRedirectUrl(rawURL);
 
         if (targetURL.includes('youtube.com') || targetURL.includes('youtu.be')) {
-            const [oembedData, ytDlpData, audioData] = await Promise.all([
+            const [oembedData, ytDlpData] = await Promise.all([
                 fetchYouTubeOEmbed(targetURL).catch(() => ({ title: 'Lim3rd Media File', thumbnail: '' })),
-                fetchYtDlpInfo(targetURL).catch(() => null),
-                fetchYouTubeAudio(targetURL).catch(() => null)
+                fetchYtDlpInfo(targetURL).catch(() => null)
             ]);
 
             const videoFormats = ytDlpData?.videoFormats || [];
-            const audioFormats =
-                audioData && Array.isArray(audioData.formats) && audioData.formats.length > 0
-                    ? audioData.formats
-                    : (ytDlpData?.fallbackAudioFormats || []);
+            const audioFormats = ytDlpData?.audioFormats || [
+                { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${targetURL}` },
+                { quality: 'Standard Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${targetURL}` }
+            ];
 
-            const title = ytDlpData?.title || audioData?.title || oembedData?.title || 'Lim3rd Media File';
+            const title = ytDlpData?.title || oembedData?.title || 'Lim3rd Media File';
             const author = ytDlpData?.author || 'Lim3rd Universal Downloader';
-            const thumbnail = ytDlpData?.thumbnail || audioData?.thumbnail || oembedData?.thumbnail || '';
+            const thumbnail = ytDlpData?.thumbnail || oembedData?.thumbnail || '';
 
             console.log('[GET /download] Done -> title:', title, '| videoFormats:', videoFormats.length, '| audioFormats:', audioFormats.length);
 
