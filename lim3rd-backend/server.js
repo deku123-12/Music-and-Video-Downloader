@@ -400,14 +400,28 @@ function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
 }
 
 async function runYtDlpMp4WithFallback(ytUrl, selector, tmpOutput) {
+    const isRateLimited = (text = '') =>
+        text.includes('HTTP Error 429') || text.includes('Too Many Requests');
+    const tmpPrefix = path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4'));
+
     if (cookiesFilePath) {
         const first = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, true);
         if (first.ok) return first;
-        cleanupTempPrefix(path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4')));
+        cleanupTempPrefix(tmpPrefix);
+        if (isRateLimited(first.stderrText)) {
+            console.warn('[MP4 Build] Hit HTTP 429 on WITH_COOKIES, skipping extra retries.');
+            return first;
+        }
     }
+
     const second = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, false);
     if (second.ok) return second;
-    cleanupTempPrefix(path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4')));
+    cleanupTempPrefix(tmpPrefix);
+    if (isRateLimited(second.stderrText)) {
+        console.warn('[MP4 Build] Hit HTTP 429 on NO_COOKIES, skipping extra retries.');
+        return second;
+    }
+
     return await runYtDlpMp4Once(ytUrl, 'bv*+ba/b', tmpOutput, false);
 }
 
@@ -458,7 +472,12 @@ app.get('/proxy-download', async (req, res) => {
             console.error('[MP4 Build] Failed completely:', result.code, result.stderrText.slice(-800));
             cleanupTempPrefix(tmpBase);
             if (!res.headersSent) {
-                res.status(502).json({ error: 'yt-dlp failed to build playable MP4.' });
+                const hit429 = result.stderrText.includes('HTTP Error 429') || result.stderrText.includes('Too Many Requests');
+                res.status(hit429 ? 429 : 502).json({
+                    error: hit429
+                        ? 'YouTube rate-limited the server (HTTP 429). Please wait a bit and try again.'
+                        : 'yt-dlp failed to build playable MP4.'
+                });
             }
             return;
         }
@@ -518,26 +537,40 @@ app.get('/proxy-download', async (req, res) => {
 
             console.log(`[MP3 Build] Starting (${modeLabel}) selector: ${audioSelector}`);
             const proc = spawn('yt-dlp', args);
-            proc.on('error', () => resolve(false));
+            let stderrText = '';
+            proc.stderr.on('data', (chunk) => {
+                stderrText += chunk.toString();
+            });
+            proc.on('error', () => resolve({ ok: false, stderrText }));
             proc.on('close', (code) => {
                 const ok = code === 0 && fs.existsSync(tmpOutput) && fs.statSync(tmpOutput).size >= 1024;
                 console.log(`[MP3 Build] Finished (${modeLabel}) code=${code}, ok=${ok}`);
-                resolve(ok);
+                resolve({ ok, stderrText });
             });
         });
 
-        let ok = false;
+        const isRateLimited = (text = '') =>
+            text.includes('HTTP Error 429') || text.includes('Too Many Requests');
+
+        let attempt = { ok: false, stderrText: '' };
         if (cookiesFilePath) {
-            ok = await runAudioOnce(true);
-            if (!ok) cleanupTempPrefix(tmpBase);
+            attempt = await runAudioOnce(true);
+            if (!attempt.ok) cleanupTempPrefix(tmpBase);
         }
-        if (!ok) {
-            ok = await runAudioOnce(false);
+        if (!attempt.ok && !isRateLimited(attempt.stderrText)) {
+            attempt = await runAudioOnce(false);
         }
 
-        if (!ok || !fs.existsSync(tmpOutput)) {
+        if (!attempt.ok || !fs.existsSync(tmpOutput)) {
             cleanupTempPrefix(tmpBase);
-            if (!res.headersSent) res.status(502).json({ error: 'Failed to build MP3 audio.' });
+            if (!res.headersSent) {
+                const hit429 = isRateLimited(attempt.stderrText);
+                res.status(hit429 ? 429 : 502).json({
+                    error: hit429
+                        ? 'YouTube rate-limited the server (HTTP 429). Please wait a bit and try again.'
+                        : 'Failed to build MP3 audio.'
+                });
+            }
             return;
         }
 
