@@ -13,7 +13,7 @@ app.use(express.json());
 const MAX_CONCURRENT_YTDLP = 1;
 const MAX_QUEUE_SIZE = 2;
 const INFO_CACHE_TTL_MS = 10 * 60 * 1000;
-const YTDLP_JSON_TIMEOUT_MS = 15000;
+const YTDLP_JSON_TIMEOUT_MS = 35000;
 const RATE_LIMIT_COOLDOWN_MS = 3 * 60 * 1000;
 
 let cookiesFilePath = null;
@@ -205,7 +205,12 @@ function runYtDlpJsonOnce(youtubeUrl, useCookies) {
             const errText = stderrClean || errMsg || 'Unknown error';
 
             if (err || !stdout) {
-                console.warn(`[yt-dlp] Failed (${modeLabel}): ${errText.slice(-1000)}`);
+                console.warn(`[yt-dlp] Failed (${modeLabel}):`, {
+                    code: err?.code ?? null,
+                    signal: err?.signal ?? null,
+                    killed: Boolean(err?.killed),
+                    stderr: stderrClean.slice(-800) || '(empty)'
+                });
                 return resolve({ data: null, rateLimited: isRateLimitedText(errText) });
             }
             try {
@@ -367,7 +372,7 @@ function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
             try {
                 proc.kill('SIGKILL');
             } catch (_) {}
-        }, 45000);
+        }, 50000);
 
         proc.stderr.on('data', (chunk) => {
             stderrText += chunk.toString();
@@ -383,7 +388,7 @@ function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
             const exists = fs.existsSync(tmpOutput);
             const size = exists ? fs.statSync(tmpOutput).size : 0;
             const ok = code === 0 && exists && size >= 1024;
-            console.log(`[MP4 Build] Finished (${modeLabel}) code=${code}, ok=${ok}, size=${size}`);
+            console.log(`[MP4 Build] Finished (${modeLabel}) code=${code}, ok=${ok}, size=${size}`, ok ? '' : stderrText.trim().slice(-500));
             resolve({ ok, code, stderrText });
         });
     });
@@ -436,7 +441,7 @@ function runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, useCookies) {
             try {
                 proc.kill('SIGKILL');
             } catch (_) {}
-        }, 40000);
+        }, 45000);
 
         proc.stderr.on('data', (chunk) => {
             stderrText += chunk.toString();
@@ -450,7 +455,7 @@ function runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, useCookies) {
         proc.on('close', (code) => {
             clearTimeout(killTimer);
             const ok = code === 0 && fs.existsSync(tmpOutput) && fs.statSync(tmpOutput).size >= 1024;
-            console.log(`[MP3 Build] Finished (${modeLabel}) code=${code}, ok=${ok}`);
+            console.log(`[MP3 Build] Finished (${modeLabel}) code=${code}, ok=${ok}`, ok ? '' : stderrText.trim().slice(-500));
             resolve({ ok, stderrText });
         });
     });
