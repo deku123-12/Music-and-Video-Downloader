@@ -12,7 +12,8 @@ app.use(express.json());
 
 const MAX_CONCURRENT_YTDLP = 1;
 const MAX_QUEUE_SIZE = 2;
-const INFO_CACHE_TTL_MS = 10 * 60 * 1000;
+const INFO_CACHE_TTL_MS = 15 * 60 * 1000;
+const BUILT_FILE_TTL_MS = 10 * 60 * 1000;
 const YTDLP_JSON_TIMEOUT_MS = 35000;
 const RATE_LIMIT_COOLDOWN_MS = 3 * 60 * 1000;
 
@@ -36,6 +37,8 @@ let rateLimitUntil = 0;
 const ytdlpWaitQueue = [];
 const infoCache = new Map();
 const inFlightInfo = new Map();
+const builtFileCache = new Map();
+const inFlightBuild = new Map();
 
 function triggerRateLimitCooldown(reason = '') {
     rateLimitUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
@@ -193,7 +196,7 @@ async function fetchYouTubeOEmbed(youtubeUrl) {
     }
 }
 
-function runYtDlpJsonOnce(youtubeUrl, useCookies) {
+function runYtDlpJsonOnce(youtubeUrl, useCookies = true) {
     return new Promise((resolve) => {
         const modeLabel = useCookies && cookiesFilePath ? 'WITH_COOKIES' : 'NO_COOKIES';
         const args = getYtDlpBaseArgs(['--dump-single-json', youtubeUrl], useCookies);
@@ -216,44 +219,45 @@ function runYtDlpJsonOnce(youtubeUrl, useCookies) {
             try {
                 const info = JSON.parse(stdout);
                 const formats = Array.isArray(info.formats) ? info.formats : [];
-                const videoFormats = [];
-                const seen = new Set();
+                const videoCandidates = [];
 
                 for (const f of formats) {
                     const ext = String(f.ext || '').toLowerCase();
-                    const hasVideo = f.vcodec && f.vcodec !== 'none';
-                    const hasAudio = f.acodec && f.acodec !== 'none';
-                    if (ext === 'mp4' && hasVideo && hasAudio && f.format_id) {
-                        const label = f.height ? `${f.height}p` : (f.format_note || 'MP4');
-                        const key = `mp4-${label}`;
-                        if (!seen.has(key)) {
-                            seen.add(key);
-                            videoFormats.push({
+                    const hasVideo = Boolean(f.vcodec && f.vcodec !== 'none');
+                    if (!hasVideo || !f.format_id) continue;
+
+                    const height = Number(f.height) || 0;
+                    const label = height ? `${height}p` : (f.format_note || 'Video');
+                    const existingIdx = videoCandidates.findIndex((item) => item.label === label);
+                    const isMp4 = ext === 'mp4';
+
+                    if (existingIdx === -1) {
+                        videoCandidates.push({
+                            label,
+                            height,
+                            isMp4,
+                            format: {
                                 quality: label,
                                 type: 'MP4',
                                 url: `ytdlp://${f.format_id}|${youtubeUrl}`
-                            });
-                        }
+                            }
+                        });
+                    } else if (isMp4 && !videoCandidates[existingIdx].isMp4) {
+                        videoCandidates[existingIdx] = {
+                            label,
+                            height,
+                            isMp4,
+                            format: {
+                                quality: label,
+                                type: 'MP4',
+                                url: `ytdlp://${f.format_id}|${youtubeUrl}`
+                            }
+                        };
                     }
                 }
 
-                for (const f of formats) {
-                    const ext = String(f.ext || '').toLowerCase();
-                    const hasVideo = f.vcodec && f.vcodec !== 'none';
-                    const hasAudio = f.acodec && f.acodec !== 'none';
-                    if (ext === 'mp4' && hasVideo && !hasAudio && f.format_id && f.height) {
-                        const label = `${f.height}p`;
-                        const key = `mp4-${label}`;
-                        if (!seen.has(key)) {
-                            seen.add(key);
-                            videoFormats.push({
-                                quality: label,
-                                type: 'MP4',
-                                url: `ytdlp://${f.format_id}|${youtubeUrl}`
-                            });
-                        }
-                    }
-                }
+                videoCandidates.sort((a, b) => (b.height - a.height) || (Number(b.isMp4) - Number(a.isMp4)));
+                const videoFormats = videoCandidates.map((item) => item.format);
 
                 const audioFormats = [
                     { quality: 'High Quality', type: 'MP3', url: `ytdlp-audio://bestaudio[ext=m4a]/bestaudio|${youtubeUrl}` },
@@ -303,22 +307,13 @@ async function fetchYtDlpInfo(youtubeUrl) {
     const jobPromise = (async () => {
         try {
             return await withYtDlpSlot(async () => {
-                if (cookiesFilePath) {
-                    const first = await runYtDlpJsonOnce(youtubeUrl, true);
-                    if (first.data && (first.data.videoFormats.length > 0 || first.data.title)) {
-                        return first.data;
-                    }
-                    if (first.rateLimited) {
-                        triggerRateLimitCooldown('info WITH_COOKIES 429');
-                        return { rateLimited: true };
-                    }
-                }
-                const second = await runYtDlpJsonOnce(youtubeUrl, false);
-                if (second.rateLimited) {
-                    triggerRateLimitCooldown('info NO_COOKIES 429');
+                const useCookies = Boolean(cookiesFilePath);
+                const result = await runYtDlpJsonOnce(youtubeUrl, useCookies);
+                if (result.rateLimited) {
+                    triggerRateLimitCooldown(`info ${useCookies ? 'WITH_COOKIES' : 'NO_COOKIES'} 429`);
                     return { rateLimited: true };
                 }
-                return second.data || null;
+                return result.data || null;
             });
         } catch (err) {
             if (err.message === 'SERVER_BUSY') {
@@ -354,7 +349,24 @@ function cleanupTempPrefix(tmpBase) {
     } catch (_) {}
 }
 
-function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
+function getCachedBuiltFile(cacheKey) {
+    const entry = builtFileCache.get(cacheKey);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > BUILT_FILE_TTL_MS || !fs.existsSync(entry.filePath)) {
+        builtFileCache.delete(cacheKey);
+        try {
+            if (fs.existsSync(entry.filePath)) fs.unlinkSync(entry.filePath);
+        } catch (_) {}
+        return null;
+    }
+    return entry.filePath;
+}
+
+function setCachedBuiltFile(cacheKey, filePath) {
+    builtFileCache.set(cacheKey, { ts: Date.now(), filePath });
+}
+
+function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies = true) {
     return new Promise((resolve) => {
         const modeLabel = useCookies && cookiesFilePath ? 'WITH_COOKIES' : 'NO_COOKIES';
         const args = getYtDlpBaseArgs([
@@ -394,34 +406,50 @@ function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
     });
 }
 
-async function runYtDlpMp4WithFallback(ytUrl, selector, tmpOutput) {
-    if (Date.now() < rateLimitUntil) {
-        return { ok: false, code: 429, stderrText: 'HTTP Error 429: Too Many Requests' };
+async function buildOrGetCachedMp4(ytUrl, formatId) {
+    const videoId = extractYouTubeId(ytUrl) || ytUrl;
+    const cacheKey = `mp4:${videoId}:${formatId}`;
+    const existingPath = getCachedBuiltFile(cacheKey);
+    if (existingPath) {
+        console.log('[MP4 Build] Cache hit:', cacheKey);
+        return { ok: true, filePath: existingPath, stderrText: '' };
     }
-    return await withYtDlpSlot(async () => {
-        const tmpPrefix = path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4'));
 
-        if (cookiesFilePath) {
-            const first = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, true);
-            if (first.ok) return first;
-            cleanupTempPrefix(tmpPrefix);
-            if (isRateLimitedText(first.stderrText)) {
-                triggerRateLimitCooldown('mp4 WITH_COOKIES 429');
-                return first;
+    if (inFlightBuild.has(cacheKey)) {
+        console.log('[MP4 Build] Joining in-flight build:', cacheKey);
+        return await inFlightBuild.get(cacheKey);
+    }
+
+    const buildPromise = (async () => {
+        if (Date.now() < rateLimitUntil) {
+            return { ok: false, filePath: null, stderrText: 'HTTP Error 429: Too Many Requests' };
+        }
+        return await withYtDlpSlot(async () => {
+            const tmpBase = path.join(os.tmpdir(), `lim3rd_vid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+            const tmpOutput = `${tmpBase}.mp4`;
+            const selector = `${formatId}+bestaudio[ext=m4a]/${formatId}/best[ext=mp4]/b`;
+            const useCookies = Boolean(cookiesFilePath);
+
+            const res = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies);
+            if (res.ok) {
+                setCachedBuiltFile(cacheKey, tmpOutput);
+                return { ok: true, filePath: tmpOutput, stderrText: '' };
             }
-        }
-
-        const second = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, false);
-        if (second.ok) return second;
-        cleanupTempPrefix(tmpPrefix);
-        if (isRateLimitedText(second.stderrText)) {
-            triggerRateLimitCooldown('mp4 NO_COOKIES 429');
-        }
-        return second;
+            cleanupTempPrefix(tmpBase);
+            if (isRateLimitedText(res.stderrText)) {
+                triggerRateLimitCooldown(`mp4 ${useCookies ? 'WITH_COOKIES' : 'NO_COOKIES'} 429`);
+            }
+            return { ok: false, filePath: null, stderrText: res.stderrText };
+        });
+    })().finally(() => {
+        inFlightBuild.delete(cacheKey);
     });
+
+    inFlightBuild.set(cacheKey, buildPromise);
+    return await buildPromise;
 }
 
-function runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, useCookies) {
+function runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, useCookies = true) {
     return new Promise((resolve) => {
         const modeLabel = useCookies && cookiesFilePath ? 'WITH_COOKIES' : 'NO_COOKIES';
         const args = getYtDlpBaseArgs([
@@ -461,28 +489,46 @@ function runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, useCookies) {
     });
 }
 
-async function runYtDlpAudioWithFallback(ytUrl, selector, tmpBase, tmpOutput) {
-    if (Date.now() < rateLimitUntil) {
-        return { ok: false, stderrText: 'HTTP Error 429: Too Many Requests' };
+async function buildOrGetCachedAudio(ytUrl, audioSelector) {
+    const videoId = extractYouTubeId(ytUrl) || ytUrl;
+    const cacheKey = `mp3:${videoId}:${audioSelector}`;
+    const existingPath = getCachedBuiltFile(cacheKey);
+    if (existingPath) {
+        console.log('[MP3 Build] Cache hit:', cacheKey);
+        return { ok: true, filePath: existingPath, stderrText: '' };
     }
-    return await withYtDlpSlot(async () => {
-        if (cookiesFilePath) {
-            const first = await runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, true);
-            if (first.ok) return first;
-            cleanupTempPrefix(tmpBase);
-            if (isRateLimitedText(first.stderrText)) {
-                triggerRateLimitCooldown('mp3 WITH_COOKIES 429');
-                return first;
+
+    if (inFlightBuild.has(cacheKey)) {
+        console.log('[MP3 Build] Joining in-flight build:', cacheKey);
+        return await inFlightBuild.get(cacheKey);
+    }
+
+    const buildPromise = (async () => {
+        if (Date.now() < rateLimitUntil) {
+            return { ok: false, filePath: null, stderrText: 'HTTP Error 429: Too Many Requests' };
+        }
+        return await withYtDlpSlot(async () => {
+            const tmpBase = path.join(os.tmpdir(), `lim3rd_aud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
+            const tmpOutput = `${tmpBase}.mp3`;
+            const useCookies = Boolean(cookiesFilePath);
+
+            const res = await runYtDlpAudioOnce(ytUrl, audioSelector, tmpBase, tmpOutput, useCookies);
+            if (res.ok) {
+                setCachedBuiltFile(cacheKey, tmpOutput);
+                return { ok: true, filePath: tmpOutput, stderrText: '' };
             }
-        }
-        const second = await runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, false);
-        if (second.ok) return second;
-        cleanupTempPrefix(tmpBase);
-        if (isRateLimitedText(second.stderrText)) {
-            triggerRateLimitCooldown('mp3 NO_COOKIES 429');
-        }
-        return second;
+            cleanupTempPrefix(tmpBase);
+            if (isRateLimitedText(res.stderrText)) {
+                triggerRateLimitCooldown(`mp3 ${useCookies ? 'WITH_COOKIES' : 'NO_COOKIES'} 429`);
+            }
+            return { ok: false, filePath: null, stderrText: res.stderrText };
+        });
+    })().finally(() => {
+        inFlightBuild.delete(cacheKey);
     });
+
+    inFlightBuild.set(cacheKey, buildPromise);
+    return await buildPromise;
 }
 
 app.get('/region', (req, res) => {
@@ -519,15 +565,9 @@ app.get('/proxy-download', async (req, res) => {
 
         const safeTitle = formatTitleWithLim3rd(rawTitle);
         const filename = `${safeTitle}.mp4`;
-        const tmpBase = path.join(os.tmpdir(), `lim3rd_vid_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
-        const tmpOutput = `${tmpBase}.mp4`;
+        const result = await buildOrGetCachedMp4(ytUrl, formatId);
 
-        const formatSelector = `${formatId}+bestaudio[ext=m4a]/${formatId}/best[ext=mp4]/b`;
-        const result = await runYtDlpMp4WithFallback(ytUrl, formatSelector, tmpOutput);
-
-        if (!result.ok || !fs.existsSync(tmpOutput)) {
-            console.error('[MP4 Build] Failed:', result.code, result.stderrText.slice(-500));
-            cleanupTempPrefix(tmpBase);
+        if (!result.ok || !result.filePath || !fs.existsSync(result.filePath)) {
             if (!res.headersSent) {
                 const hit429 = isRateLimitedText(result.stderrText);
                 res.status(hit429 ? 429 : 502).json({
@@ -540,25 +580,17 @@ app.get('/proxy-download', async (req, res) => {
         }
 
         try {
-            const stat = fs.statSync(tmpOutput);
+            const stat = fs.statSync(result.filePath);
             res.setHeader('Content-Type', 'video/mp4');
             res.setHeader('Content-Length', stat.size);
             res.setHeader(
                 'Content-Disposition',
                 `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
             );
-
-            const stream = fs.createReadStream(tmpOutput);
-            stream.pipe(res);
-            stream.on('close', () => cleanupTempPrefix(tmpBase));
-            stream.on('error', () => {
-                cleanupTempPrefix(tmpBase);
-                if (!res.headersSent) res.status(500).end();
-            });
+            fs.createReadStream(result.filePath).pipe(res);
         } catch (_) {
-            cleanupTempPrefix(tmpBase);
             if (!res.headersSent) {
-                res.status(500).json({ error: 'Failed to read generated MP4.' });
+                res.status(500).json({ error: 'Failed to stream generated MP4.' });
             }
         }
         return;
@@ -576,13 +608,9 @@ app.get('/proxy-download', async (req, res) => {
 
         const safeTitle = formatTitleWithLim3rd(rawTitle);
         const filename = `${safeTitle}.mp3`;
-        const tmpBase = path.join(os.tmpdir(), `lim3rd_aud_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
-        const tmpOutput = `${tmpBase}.mp3`;
+        const attempt = await buildOrGetCachedAudio(ytUrl, audioSelector);
 
-        const attempt = await runYtDlpAudioWithFallback(ytUrl, audioSelector, tmpBase, tmpOutput);
-
-        if (!attempt.ok || !fs.existsSync(tmpOutput)) {
-            cleanupTempPrefix(tmpBase);
+        if (!attempt.ok || !attempt.filePath || !fs.existsSync(attempt.filePath)) {
             if (!res.headersSent) {
                 const hit429 = isRateLimitedText(attempt.stderrText);
                 res.status(hit429 ? 429 : 502).json({
@@ -595,19 +623,18 @@ app.get('/proxy-download', async (req, res) => {
         }
 
         try {
-            const stat = fs.statSync(tmpOutput);
+            const stat = fs.statSync(attempt.filePath);
             res.setHeader('Content-Type', 'audio/mpeg');
             res.setHeader('Content-Length', stat.size);
             res.setHeader(
                 'Content-Disposition',
                 `attachment; filename="${filename.replace(/"/g, '')}"; filename*=UTF-8''${encodeURIComponent(filename)}`
             );
-            const stream = fs.createReadStream(tmpOutput);
-            stream.pipe(res);
-            stream.on('close', () => cleanupTempPrefix(tmpBase));
-            stream.on('error', () => cleanupTempPrefix(tmpBase));
+            fs.createReadStream(attempt.filePath).pipe(res);
         } catch (_) {
-            cleanupTempPrefix(tmpBase);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Failed to stream generated MP3.' });
+            }
         }
         return;
     }
@@ -679,10 +706,21 @@ app.get('/download', async (req, res) => {
         const targetURL = isDirectYouTube ? rawURL : await resolveRedirectUrl(rawURL);
 
         if (targetURL.includes('youtube.com') || targetURL.includes('youtu.be')) {
-            const [oembedData, ytDlpData] = await Promise.all([
-                fetchYouTubeOEmbed(targetURL).catch(() => ({ title: 'Lim3rd Media File', thumbnail: '' })),
-                fetchYtDlpInfo(targetURL).catch(() => null)
-            ]);
+            const videoId = extractYouTubeId(targetURL);
+            const cacheKey = videoId || targetURL.trim();
+            const cachedInfo = infoCache.get(cacheKey);
+
+            let oembedData = { title: 'Lim3rd Media File', thumbnail: '' };
+            let ytDlpData = null;
+
+            if (cachedInfo && Date.now() - cachedInfo.ts < INFO_CACHE_TTL_MS) {
+                ytDlpData = cachedInfo.value;
+            } else {
+                [oembedData, ytDlpData] = await Promise.all([
+                    fetchYouTubeOEmbed(targetURL).catch(() => ({ title: 'Lim3rd Media File', thumbnail: '' })),
+                    fetchYtDlpInfo(targetURL).catch(() => null)
+                ]);
+            }
 
             if (ytDlpData?.rateLimited) {
                 return res.status(429).json({
