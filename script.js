@@ -57,6 +57,7 @@ let activeDownloadExt = 'mp4';
 let activeMediaTitle = 'Lim3rd_Media';
 let globalData = null;
 let currentRegionCode = 'PH';
+let isFetchingMedia = false;
 
 function updateLiveClock() {
     const clockEl = document.getElementById('liveClock');
@@ -131,6 +132,56 @@ function playIntroAnimation() {
     setTimeout(revealApp, 1150);
 }
 
+async function handleDownloadNow(e) {
+    e.preventDefault();
+    if (!activeDownloadUrl) return;
+
+    const downloadBtn = document.getElementById('downloadNowBtn');
+    const originalText = downloadBtn ? downloadBtn.innerHTML : '';
+    if (downloadBtn) {
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Preparing...`;
+    }
+
+    const cleanBaseTitle = (activeMediaTitle || 'Lim3rd_Media')
+        .replace(/\s*-\s*Lim3rd$/i, '')
+        .trim();
+    const finalTitleWithBrand = `${cleanBaseTitle} - Lim3rd`;
+    const filename = `${finalTitleWithBrand}.${activeDownloadExt}`;
+
+    const proxiedUrl = `${BACKEND_BASE_URL}/proxy-download?url=${encodeURIComponent(activeDownloadUrl)}&title=${encodeURIComponent(finalTitleWithBrand)}&ext=${encodeURIComponent(activeDownloadExt)}`;
+
+    try {
+        const res = await fetchWithTimeout(proxiedUrl, {}, 60000);
+        if (!res.ok) {
+            alert(LIM3RD_SERVER_BUSY_MSG);
+            return;
+        }
+
+        const blob = await res.blob();
+        if (!blob || blob.size < 1024) {
+            alert(LIM3RD_SERVER_BUSY_MSG);
+            return;
+        }
+
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.setAttribute('download', filename);
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+    } catch (err) {
+        alert(LIM3RD_SERVER_BUSY_MSG);
+    } finally {
+        if (downloadBtn) {
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = originalText;
+        }
+    }
+}
+
 window.addEventListener('DOMContentLoaded', () => {
     playIntroAnimation();
     updateLiveClock();
@@ -156,6 +207,9 @@ window.addEventListener('DOMContentLoaded', () => {
     const modeButtons = document.querySelectorAll('.mode-switch .mode-btn');
     if (modeButtons[0]) modeButtons[0].addEventListener('click', () => switchTab('video'));
     if (modeButtons[1]) modeButtons[1].addEventListener('click', () => switchTab('audio'));
+
+    const downloadNowBtnEl = document.getElementById('downloadNowBtn');
+    if (downloadNowBtnEl) downloadNowBtnEl.addEventListener('click', handleDownloadNow);
 });
 
 function changeLanguage() {
@@ -297,7 +351,7 @@ function switchTab(type) {
     }
 }
 
-async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 40000) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -308,6 +362,8 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 30000) {
 }
 
 async function fetchMedia() {
+    if (isFetchingMedia) return;
+
     const t = translations[currentLang];
     const rawInput = document.getElementById('mediaInput')?.value.trim() || '';
     const cleanUrl = extractUrl(rawInput) || rawInput;
@@ -325,6 +381,7 @@ async function fetchMedia() {
         return;
     }
 
+    isFetchingMedia = true;
     if (fetchBtn) fetchBtn.disabled = true;
     if (resultBox) resultBox.style.display = 'block';
     if (statusMsg) {
@@ -339,17 +396,7 @@ async function fetchMedia() {
     try {
         const geoParam = encodeURIComponent(currentRegionCode || 'PH');
         const backendUrl = `${BACKEND_BASE_URL}/download?url=${encodeURIComponent(cleanUrl)}&cgeo=${geoParam}`;
-        let response;
-
-        try {
-            response = await fetchWithTimeout(backendUrl, {}, 30000);
-        } catch (firstErr) {
-            if (statusMsg) {
-                statusMsg.innerHTML = `<i class="fa-solid fa-spinner fa-spin" style="margin-right: 8px;"></i> Waking up server, please wait...`;
-            }
-            response = await fetchWithTimeout(backendUrl, {}, 35000);
-        }
-
+        const response = await fetchWithTimeout(backendUrl, {}, 40000);
         const data = await response.json();
 
         if (response.ok && data.status === 'success') {
@@ -407,55 +454,7 @@ async function fetchMedia() {
         alert(t.errorConn);
         if (resultBox) resultBox.style.display = 'none';
     } finally {
+        isFetchingMedia = false;
         if (fetchBtn) fetchBtn.disabled = false;
     }
-}
-
-const downloadNowBtnEl = document.getElementById('downloadNowBtn');
-if (downloadNowBtnEl) {
-    downloadNowBtnEl.onclick = async (e) => {
-        e.preventDefault();
-        if (!activeDownloadUrl) return;
-
-        const downloadBtn = downloadNowBtnEl;
-        const originalText = downloadBtn.innerHTML;
-        downloadBtn.disabled = true;
-        downloadBtn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Preparing...`;
-
-        const cleanBaseTitle = (activeMediaTitle || 'Lim3rd_Media')
-            .replace(/\s*-\s*Lim3rd$/i, '')
-            .trim();
-        const finalTitleWithBrand = `${cleanBaseTitle} - Lim3rd`;
-        const filename = `${finalTitleWithBrand}.${activeDownloadExt}`;
-
-        const proxiedUrl = `${BACKEND_BASE_URL}/proxy-download?url=${encodeURIComponent(activeDownloadUrl)}&title=${encodeURIComponent(finalTitleWithBrand)}&ext=${encodeURIComponent(activeDownloadExt)}`;
-
-        try {
-            const res = await fetch(proxiedUrl);
-            if (!res.ok) {
-                alert(LIM3RD_SERVER_BUSY_MSG);
-                return;
-            }
-
-            const blob = await res.blob();
-            if (!blob || blob.size < 1024) {
-                alert(LIM3RD_SERVER_BUSY_MSG);
-                return;
-            }
-
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = blobUrl;
-            a.setAttribute('download', filename);
-            document.body.appendChild(a);
-            a.click();
-            a.remove();
-            setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
-        } catch (err) {
-            alert(LIM3RD_SERVER_BUSY_MSG);
-        } finally {
-            downloadBtn.disabled = false;
-            downloadBtn.innerHTML = originalText;
-        }
-    };
 }

@@ -11,8 +11,10 @@ app.use(cors());
 app.use(express.json());
 
 const MAX_CONCURRENT_YTDLP = 1;
-const INFO_CACHE_TTL_MS = 5 * 60 * 1000;
+const MAX_QUEUE_SIZE = 2;
+const INFO_CACHE_TTL_MS = 10 * 60 * 1000;
 const YTDLP_JSON_TIMEOUT_MS = 15000;
+const RATE_LIMIT_COOLDOWN_MS = 3 * 60 * 1000;
 
 let cookiesFilePath = null;
 if (process.env.YTDLP_COOKIES_B64) {
@@ -30,11 +32,18 @@ if (process.env.YTDLP_COOKIES_B64) {
 }
 
 let activeYtDlpJobs = 0;
+let rateLimitUntil = 0;
 const ytdlpWaitQueue = [];
 const infoCache = new Map();
+const inFlightInfo = new Map();
+
+function triggerRateLimitCooldown(reason = '') {
+    rateLimitUntil = Date.now() + RATE_LIMIT_COOLDOWN_MS;
+    console.warn(`[RateLimit] Activated 3-minute cooldown (${reason}).`);
+}
 
 function acquireYtDlpSlot() {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         if (activeYtDlpJobs < MAX_CONCURRENT_YTDLP) {
             activeYtDlpJobs += 1;
             resolve(() => {
@@ -43,6 +52,9 @@ function acquireYtDlpSlot() {
                 if (next) next();
             });
             return;
+        }
+        if (ytdlpWaitQueue.length >= MAX_QUEUE_SIZE) {
+            return reject(new Error('SERVER_BUSY'));
         }
         ytdlpWaitQueue.push(() => {
             activeYtDlpJobs += 1;
@@ -67,9 +79,10 @@ async function withYtDlpSlot(fn) {
 function getYtDlpBaseArgs(extraArgs = [], useCookies = true) {
     const args = [
         '--no-playlist',
+        '--no-warnings',
         '--js-runtimes', 'deno',
         '--remote-components', 'ejs:github',
-        '--extractor-args', 'youtube:player_client=android,web'
+        '--extractor-args', 'youtube:player_client=web'
     ];
     if (useCookies && cookiesFilePath) {
         args.push('--cookies', cookiesFilePath);
@@ -260,28 +273,59 @@ function runYtDlpJsonOnce(youtubeUrl, useCookies) {
 }
 
 async function fetchYtDlpInfo(youtubeUrl) {
-    const cacheKey = youtubeUrl.trim();
+    const videoId = extractYouTubeId(youtubeUrl);
+    const cacheKey = videoId || youtubeUrl.trim();
+
     const cached = infoCache.get(cacheKey);
     if (cached && Date.now() - cached.ts < INFO_CACHE_TTL_MS) {
         console.log('[yt-dlp] Cache hit for:', cacheKey);
         return cached.value;
     }
 
-    const result = await withYtDlpSlot(async () => {
-        if (cookiesFilePath) {
-            const first = await runYtDlpJsonOnce(youtubeUrl, true);
-            if (first.data && (first.data.videoFormats.length > 0 || first.data.title)) {
-                return first.data;
-            }
-            if (first.rateLimited) {
-                return null;
-            }
-        }
-        const second = await runYtDlpJsonOnce(youtubeUrl, false);
-        return second.data || null;
-    });
+    if (Date.now() < rateLimitUntil) {
+        console.warn('[yt-dlp] Skipping call during 429 cooldown.');
+        return { rateLimited: true };
+    }
 
-    if (result && (result.videoFormats.length > 0 || result.title)) {
+    if (inFlightInfo.has(cacheKey)) {
+        console.log('[yt-dlp] Joining in-flight request for:', cacheKey);
+        return await inFlightInfo.get(cacheKey);
+    }
+
+    const jobPromise = (async () => {
+        try {
+            return await withYtDlpSlot(async () => {
+                if (cookiesFilePath) {
+                    const first = await runYtDlpJsonOnce(youtubeUrl, true);
+                    if (first.data && (first.data.videoFormats.length > 0 || first.data.title)) {
+                        return first.data;
+                    }
+                    if (first.rateLimited) {
+                        triggerRateLimitCooldown('info WITH_COOKIES 429');
+                        return { rateLimited: true };
+                    }
+                }
+                const second = await runYtDlpJsonOnce(youtubeUrl, false);
+                if (second.rateLimited) {
+                    triggerRateLimitCooldown('info NO_COOKIES 429');
+                    return { rateLimited: true };
+                }
+                return second.data || null;
+            });
+        } catch (err) {
+            if (err.message === 'SERVER_BUSY') {
+                return { busy: true };
+            }
+            return null;
+        } finally {
+            inFlightInfo.delete(cacheKey);
+        }
+    })();
+
+    inFlightInfo.set(cacheKey, jobPromise);
+    const result = await jobPromise;
+
+    if (result && !result.rateLimited && !result.busy && (result.videoFormats?.length > 0 || result.title)) {
         infoCache.set(cacheKey, { ts: Date.now(), value: result });
     }
 
@@ -343,6 +387,9 @@ function runYtDlpMp4Once(ytUrl, selector, tmpOutput, useCookies) {
 }
 
 async function runYtDlpMp4WithFallback(ytUrl, selector, tmpOutput) {
+    if (Date.now() < rateLimitUntil) {
+        return { ok: false, code: 429, stderrText: 'HTTP Error 429: Too Many Requests' };
+    }
     return await withYtDlpSlot(async () => {
         const tmpPrefix = path.join(os.tmpdir(), path.basename(tmpOutput, '.mp4'));
 
@@ -351,6 +398,7 @@ async function runYtDlpMp4WithFallback(ytUrl, selector, tmpOutput) {
             if (first.ok) return first;
             cleanupTempPrefix(tmpPrefix);
             if (isRateLimitedText(first.stderrText)) {
+                triggerRateLimitCooldown('mp4 WITH_COOKIES 429');
                 return first;
             }
         }
@@ -358,6 +406,9 @@ async function runYtDlpMp4WithFallback(ytUrl, selector, tmpOutput) {
         const second = await runYtDlpMp4Once(ytUrl, selector, tmpOutput, false);
         if (second.ok) return second;
         cleanupTempPrefix(tmpPrefix);
+        if (isRateLimitedText(second.stderrText)) {
+            triggerRateLimitCooldown('mp4 NO_COOKIES 429');
+        }
         return second;
     });
 }
@@ -403,18 +454,25 @@ function runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, useCookies) {
 }
 
 async function runYtDlpAudioWithFallback(ytUrl, selector, tmpBase, tmpOutput) {
+    if (Date.now() < rateLimitUntil) {
+        return { ok: false, stderrText: 'HTTP Error 429: Too Many Requests' };
+    }
     return await withYtDlpSlot(async () => {
         if (cookiesFilePath) {
             const first = await runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, true);
             if (first.ok) return first;
             cleanupTempPrefix(tmpBase);
             if (isRateLimitedText(first.stderrText)) {
+                triggerRateLimitCooldown('mp3 WITH_COOKIES 429');
                 return first;
             }
         }
         const second = await runYtDlpAudioOnce(ytUrl, selector, tmpBase, tmpOutput, false);
         if (second.ok) return second;
         cleanupTempPrefix(tmpBase);
+        if (isRateLimitedText(second.stderrText)) {
+            triggerRateLimitCooldown('mp3 NO_COOKIES 429');
+        }
         return second;
     });
 }
@@ -466,7 +524,7 @@ app.get('/proxy-download', async (req, res) => {
                 const hit429 = isRateLimitedText(result.stderrText);
                 res.status(hit429 ? 429 : 502).json({
                     error: hit429
-                        ? 'YouTube rate-limited the server (HTTP 429). Please wait a bit and try again.'
+                        ? 'YouTube rate-limited the server (HTTP 429). Please wait a few minutes and try again.'
                         : 'yt-dlp failed to build playable MP4.'
                 });
             }
@@ -521,7 +579,7 @@ app.get('/proxy-download', async (req, res) => {
                 const hit429 = isRateLimitedText(attempt.stderrText);
                 res.status(hit429 ? 429 : 502).json({
                     error: hit429
-                        ? 'YouTube rate-limited the server (HTTP 429). Please wait a bit and try again.'
+                        ? 'YouTube rate-limited the server (HTTP 429). Please wait a few minutes and try again.'
                         : 'Failed to build MP3 audio.'
                 });
             }
@@ -617,6 +675,18 @@ app.get('/download', async (req, res) => {
                 fetchYouTubeOEmbed(targetURL).catch(() => ({ title: 'Lim3rd Media File', thumbnail: '' })),
                 fetchYtDlpInfo(targetURL).catch(() => null)
             ]);
+
+            if (ytDlpData?.rateLimited) {
+                return res.status(429).json({
+                    error: 'YouTube temporarily rate-limited the server (429). Please wait a few minutes and try again.'
+                });
+            }
+
+            if (ytDlpData?.busy) {
+                return res.status(429).json({
+                    error: 'Server is busy processing another request. Please wait a few seconds.'
+                });
+            }
 
             const videoFormats = ytDlpData?.videoFormats || [];
             const audioFormats = ytDlpData?.audioFormats || [
