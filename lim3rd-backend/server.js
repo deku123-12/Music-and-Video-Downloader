@@ -200,9 +200,12 @@ function runYtDlpJsonOnce(youtubeUrl, useCookies) {
         console.log(`[yt-dlp] Running (${modeLabel}) for:`, youtubeUrl);
 
         execFile('yt-dlp', args, { timeout: YTDLP_JSON_TIMEOUT_MS, maxBuffer: 1024 * 1024 * 20 }, (err, stdout, stderr) => {
-            const errText = String(stderr || err?.message || '');
+            const stderrClean = String(stderr || '').trim();
+            const errMsg = String(err?.message || '').trim();
+            const errText = stderrClean || errMsg || 'Unknown error';
+
             if (err || !stdout) {
-                console.warn(`[yt-dlp] Failed (${modeLabel}):`, errText.trim().slice(-800) || 'Unknown error');
+                console.warn(`[yt-dlp] Failed (${modeLabel}): ${errText.slice(-1000)}`);
                 return resolve({ data: null, rateLimited: isRateLimitedText(errText) });
             }
             try {
